@@ -16,4 +16,10 @@ wss.on("connection",(socket)=>{
             }
         }
     })
+    socket.on("close",()=>{
+        const idx = users.indexOf(socket);
+        if(idx!=-1){
+            users.splice(idx,1);
+        }
+    })
 })
