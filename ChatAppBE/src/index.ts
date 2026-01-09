@@ -34,19 +34,29 @@ app.post("/api/v1/:roomCode",(req,res)=>{
 
 wss.on("connection",(socket)=>{
     console.log("User connected ");
-    users.push(socket);
-    //console.log(users);
     socket.on("message",(e)=>{
-        for(let i=0 ; i<users.length ; i++){
-            if(users[i]!==socket){
-                users[i]!.send(e.toString());
+        let data;
+        try{
+            data = JSON.parse(e.toString());
+        }catch(e){}
+        if(data.type==="join"){
+            const room = data.roomCode;
+            (socket as any).roomCode = room;
+            rooms.get(room)?.add(socket);
+        }else if(data.type==="message"){
+            const room = (socket as any).roomCode;
+            const sockets = rooms.get(room);
+            if(!sockets) return;
+            for(const cur of sockets){
+                if(cur!=socket){
+                    cur.send(data.message);
+                }
             }
         }
     })
     socket.on("close",()=>{
-        const idx = users.indexOf(socket);
-        if(idx!=-1){
-            users.splice(idx,1);
-        }
+        const room = (socket as any).roomCode;
+        if(rooms.get(room)?.has(socket)) rooms.get(room)?.delete(socket);
+        if(rooms.get(room)?.size === 0) rooms.delete(room);
     })
 })
