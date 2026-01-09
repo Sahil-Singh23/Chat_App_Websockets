@@ -13,9 +13,6 @@ app.use(cors());
 const rooms = new Map<string,Set<WebSocket>>();
 
 
-
-const users:WebSocket[] = []; 
-
 app.post("/api/v1/create", (req,res)=>{
     const roomCode = random(6);
     rooms.set(roomCode,new Set<WebSocket>());
@@ -38,13 +35,35 @@ wss.on("connection",(socket)=>{
         let data;
         try{
             data = JSON.parse(e.toString());
-        }catch(e){}
+        }catch(e){
+            socket.send("Invalid request")
+            return;
+        }
         if(data.type==="join"){
             const room = data.roomCode;
+            if(!room || !rooms.has(room)){
+                socket.send("Invalid room");
+                return;
+            }
+            if (rooms.get(room)?.has(socket)) return;
+
+            if ((socket as any).roomCode) {
+                socket.send("Already joined a room");
+                return;
+            }
+
             (socket as any).roomCode = room;
             rooms.get(room)?.add(socket);
         }else if(data.type==="message"){
             const room = (socket as any).roomCode;
+            if (!room) {
+                socket.send("Join a room first");
+                return;
+            }
+            if(!data.message){
+                socket.send("Empty message not allowed")
+                return;
+            }
             const sockets = rooms.get(room);
             if(!sockets) return;
             for(const cur of sockets){
