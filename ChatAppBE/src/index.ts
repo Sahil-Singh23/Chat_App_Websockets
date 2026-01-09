@@ -1,9 +1,36 @@
-
+import express from "express";
 import { WebSocketServer,WebSocket } from "ws";
+import cors from 'cors';
+import random from "./utils.js";
 
 const wss = new WebSocketServer({port:8000});
 
-const users:WebSocket[] = [];
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+
+const rooms = new Map<string,Set<WebSocket>>();
+
+
+
+const users:WebSocket[] = []; 
+
+app.post("/api/v1/create", (req,res)=>{
+    const roomCode = random(6);
+    rooms.set(roomCode,new Set<WebSocket>());
+    res.json({
+        roomCode
+    })
+})
+
+app.post("/api/v1/:roomCode",(req,res)=>{
+    if(rooms.has(req.params.roomCode))
+        return res.json({messsage:"Valid room"})
+    else 
+        return res.status(404).json({messsage:"Invalid room"})
+})
+
 
 wss.on("connection",(socket)=>{
     console.log("User connected ");
