@@ -60,3 +60,5 @@ wss.on("connection",(socket)=>{
         if(rooms.get(room)?.size === 0) rooms.delete(room);
     })
 })
+
+app.listen(8001);
