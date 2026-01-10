@@ -23,9 +23,9 @@ app.post("/api/v1/create", (req,res)=>{
 
 app.post("/api/v1/:roomCode",(req,res)=>{
     if(rooms.has(req.params.roomCode))
-        return res.json({messsage:"Valid room"})
+        return res.json({message:"Valid room"})
     else 
-        return res.status(404).json({messsage:"Invalid room"})
+        return res.status(404).json({message:"Invalid room"})
 })
 
 
@@ -71,7 +71,7 @@ wss.on("connection",(socket)=>{
                     cur.send(data.message);
                 }
             }
-        }
+        }  
     })
     socket.on("close",()=>{
         const room = (socket as any).roomCode;
@@ -80,4 +80,4 @@ wss.on("connection",(socket)=>{
     })
 })
 
-app.listen(8001);
+app.listen(8001);  
