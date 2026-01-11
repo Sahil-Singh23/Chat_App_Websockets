@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'NTBrickSans';
+  src: url('./assets/fonts/NTBrickSans.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: "SFMono";
+  src: url("./assets/fonts/sf-mono-regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+@theme {
+  --font-ntbricksans: 'NTBrickSans', sans-serif;
+  --font-sfmono: SFMono, monospace;
+}
+
+body{
+    background-color: black;
+    
+}
