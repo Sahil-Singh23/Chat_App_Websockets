@@ -54,7 +54,7 @@ const Landing = () => {
     try{
       const response = await axios.post(`http://localhost:8001/api/v1/room/${roomCode}`)
       if(response.data) {
-        navigate(`/room/${roomCode}`, { state: { nickname } });
+        navigate(`/room/${roomCode}`, { state: { nickname,roomCode } });
       }
     }catch(e: any){
       if(e.response?.status === 404) {

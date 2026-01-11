@@ -1,12 +1,8 @@
-import { useState } from 'react'
 import { BrowserRouter,Routes,Route } from 'react-router-dom'
 import Landing from './pages/Landing'
-import Glow from './components/Glow'
 import Room from './pages/Room'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <BrowserRouter>
       <Routes>

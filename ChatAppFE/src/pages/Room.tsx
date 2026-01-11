@@ -1,3 +1,4 @@
+import ChatIcon from "../icons/ChatIcon"
 
 const Room = () => {
   return (
