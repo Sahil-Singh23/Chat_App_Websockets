@@ -21,7 +21,7 @@ app.post("/api/v1/create", (req,res)=>{
     })
 })
 
-app.post("/api/v1/:roomCode",(req,res)=>{
+app.post("/api/v1/room/:roomCode",(req,res)=>{
     if(rooms.has(req.params.roomCode))
         return res.json({message:"Valid room"})
     else 

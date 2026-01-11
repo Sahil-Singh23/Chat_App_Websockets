@@ -13,6 +13,9 @@ const Landing = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
+  const navigate = useNavigate();
 
   async function CreateRoom(){
     setIsLoading(true);
@@ -21,18 +24,50 @@ const Landing = () => {
       if(roomRef.current) {
         roomRef.current.value = response.data.roomCode;
         await navigator.clipboard.writeText(response.data.roomCode);
+        setAlertMessage("Room code copied to clipboard!");
+        setAlertType('success');
         setShowAlert(true);
       }
     }catch (error) {
       console.error('Error creating room:', error)
+      setAlertMessage("Failed to create room. Please try again.");
+      setAlertType('error');
+      setShowAlert(true);
     } finally {
       setIsLoading(false);
     }
   }
 
-    async function JoinRoom(){
-      
-      
+  async function JoinRoom(){
+    setIsJoining(true);
+    const roomCode = roomRef.current?.value
+    const nickname = nameRef.current?.value
+    
+    if(!roomCode || !nickname) {
+      setAlertMessage("Please enter both nickname and room code");
+      setAlertType('error');
+      setShowAlert(true);
+      setIsJoining(false);
+      return;
+    }
+    
+    try{
+      const response = await axios.post(`http://localhost:8001/api/v1/room/${roomCode}`)
+      if(response.data) {
+        navigate(`/room/${roomCode}`, { state: { nickname } });
+      }
+    }catch(e: any){
+      if(e.response?.status === 404) {
+        setAlertMessage("Invalid room code. Please check and try again.");
+        setAlertType('error');
+      } else {
+        setAlertMessage("Failed to join room. Please try again.");
+        setAlertType('error');
+      }
+      setShowAlert(true);
+    } finally {
+      setIsJoining(false);
+    }
   }
     
   
@@ -41,8 +76,8 @@ const Landing = () => {
     <section className="min-h-screen bg-[#080605]">
       {showAlert && (
         <Alert 
-          message="Room code copied to clipboard!" 
-          type="success" 
+          message={alertMessage}
+          type={alertType}
           onClose={() => setShowAlert(false)}
         />
       )}
@@ -65,7 +100,7 @@ const Landing = () => {
             </div>
             <div className="flex flex-col sm:flex-row mt-4 w-full gap-4 md:gap-2">
               <Input width="w-full sm:w-4/6" ref={roomRef} placeholder="Enter room code"></Input>
-              <Button width="w-full sm:w-2/6" disabled={isLoading||isJoining} onClick={JoinRoom} text={isLoading ? "Joining..." : "JoinRoom"} ></Button>
+              <Button width="w-full sm:w-2/6" disabled={isLoading||isJoining} onClick={JoinRoom} text={isJoining ? "Joining..." : "Join"} ></Button>
             </div>
           </div>
         </div>
