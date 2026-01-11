@@ -7,7 +7,7 @@ function App() {
   const [count, setCount] = useState(0)
 
   return (
-    <section>
+    <section className='min-h-screen'>
       <Glow></Glow>
       <Landing></Landing>
     </section>

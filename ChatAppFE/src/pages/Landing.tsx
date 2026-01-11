@@ -1,8 +1,24 @@
+import { useRef } from "react"
+import axios from 'axios'
 import Button from "../components/Button"
 import Input from "../components/Input"
 import ChatIcon from "../icons/ChatIcon"
 
 const Landing = () => {
+  const nameRef = useRef<HTMLInputElement>(null);
+  const roomRef = useRef<HTMLInputElement>(null);
+
+  async function CreateRoom(){
+    try{
+      const response = await axios.post("http://localhost:8001/api/v1/create",{ nickname: nameRef.current?.value})
+      if(roomRef.current) {
+        roomRef.current.value = response.data.roomCode;
+      }
+    }catch (error) {
+      console.error('Error creating room:', error)
+    }
+  }
+
   return (
     <section className="min-h-screen bg-[#080605]">
       <div className="flex flex-col items-center justify-center min-h-screen px-3 sm:px-6 lg:px-8">
@@ -19,10 +35,10 @@ const Landing = () => {
 						</span>
             <Button onClick={()=>{}} width="w-full" text="Create new room"></Button>
             <div className="mt-4 w-full">
-              <Input width="w-full" placeholder="Enter nickname"></Input>
+              <Input width="w-full" ref={nameRef} placeholder="Enter nickname"></Input>
             </div>
-            <div className="flex flex-col sm:flex-row mt-4 w-full gap-2">
-              <Input width="w-full sm:w-4/6" placeholder="Enter room code"></Input>
+            <div className="flex flex-col sm:flex-row mt-4 w-full gap-4 md:gap-2">
+              <Input width="w-full sm:w-4/6" ref={roomRef} placeholder="Enter room code"></Input>
               <Button width="w-full sm:w-2/6" onClick={()=>{}} text="Join Room"></Button>
             </div>
           </div>
