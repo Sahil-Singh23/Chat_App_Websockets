@@ -5,8 +5,8 @@ import ChatIcon from "../icons/ChatIcon"
 const Landing = () => {
   return (
     <section className="min-h-screen bg-[#080605]">
-      <div className="flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-1/2">
+      <div className="flex flex-col items-center justify-center min-h-screen px-3 sm:px-6 lg:px-8">
+        <div className="w-full max-w-full md:max-w-1/2">
           <div className="flex flex-col items-start p-6 md:p-8 rounded-2xl border border-solid border-neutral-700">
             <div className="flex items-center mb-3 gap-3">
               <ChatIcon></ChatIcon>
