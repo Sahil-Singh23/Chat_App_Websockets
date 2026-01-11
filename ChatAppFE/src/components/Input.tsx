@@ -12,7 +12,7 @@ const Input = forwardRef<HTMLInputElement, inputProps>((props, ref) => {
       <input 
         ref={ref}
         type="text" 
-        className="flex flex-col shrink-0 items-center text-left py-3 px-4 rounded-xl border border-solid border-[#444444] w-full text-white bg-transparent focus:outline-none focus:border-[#C7AF6B]"
+        className="flex flex-col shrink-0 items-center text-left py-3 px-4 rounded-xl border border-solid border-[#444444] w-full text-white bg-transparent focus:outline-none focus:border-[#beb59b]"
         placeholder={props.placeholder}
       />
     </div>

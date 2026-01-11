@@ -24,3 +24,18 @@ body{
     background-color: black;
     
 }
+
+@keyframes slide-down {
+  from {
+    
+    opacity: 0;
+  }
+  to {
+    
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out;
+}
