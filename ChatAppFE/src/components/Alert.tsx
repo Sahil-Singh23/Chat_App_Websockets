@@ -16,7 +16,7 @@ const Alert = ({ message, type = 'success', onClose, duration = 2500 }: AlertPro
     return () => clearTimeout(timer)
   }, [duration, onClose])
 
-  const bgColor = type === 'success' ? 'bg-[#fff]' : type === 'error' ? 'bg-red-400' : 'bg-neutral-700'
+  const bgColor = type === 'success' ? 'bg-[#fff]' : type === 'error' ? 'bg-red-400' : 'bg-white-700'
 
   return (
     <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-slide-down">

@@ -43,7 +43,7 @@ const Room = () => {
                 setShowAlert(true);
                 setAlertMessage(message);
                 setAlertType('error');
-            }else if(data.type == "user-joined"){
+            }else if(data.type == "joined"){
                 const {userCount} = data.payload;
                 setUserCount(userCount);
                 setShowAlert(true);
