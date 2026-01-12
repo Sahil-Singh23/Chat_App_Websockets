@@ -2,7 +2,6 @@ import express from "express";
 import { WebSocketServer,WebSocket } from "ws";
 import cors from 'cors';
 import random from "./utils.js";
-import { json } from "node:stream/consumers";
 
 const wss = new WebSocketServer({port:8000});
 
@@ -43,7 +42,13 @@ wss.on("connection",(socket)=>{
         }
         if(data.type==="join"){
             const {roomCode,username} = data.payload || {};
-           
+           if(!data.payload) {
+                socket.send(JSON.stringify({
+                    type: "error",
+                    payload: { message: "Missing payload" }
+                }));
+                return;
+            }
             if(!roomCode || !rooms.has(roomCode)){
                 socket.send(JSON.stringify({
                     type: "error",
@@ -103,9 +108,7 @@ wss.on("connection",(socket)=>{
                 time
             }} 
             for(const cur of sockets){
-                if(cur!=socket){
-                    cur.send(JSON.stringify(sendingData));
-                }
+                cur.send(JSON.stringify(sendingData)); 
             }
         }  
     })
@@ -119,5 +122,4 @@ wss.on("connection",(socket)=>{
         console.log("user left")
     })
 })
-
 app.listen(8001);  
