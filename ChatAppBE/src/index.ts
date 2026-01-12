@@ -13,7 +13,9 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || '*'
 }));
 
-const server = app.listen(PORT)
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});
 const wss = new WebSocketServer({server});
 
 const rooms = new Map<string,Set<WebSocket>>();
