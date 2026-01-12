@@ -141,7 +141,17 @@ const Room = () => {
                 {/* all messages will render here */}
             </div>
             <div className="flex flex-row mt-4 w-full gap-4 md:gap-2">
-              <Input width="w-5/6" ref={msgRef} placeholder="Type a message"></Input>
+              <Input 
+                width="w-5/6" 
+                ref={msgRef} 
+                placeholder="Type a message"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+              ></Input>
               <span className="hidden md:block w-1/6">
               <Button width="w-full" onClick={sendMessage} text={"Send"} ></Button></span>
               <span className="block md:hidden w-1/6">
