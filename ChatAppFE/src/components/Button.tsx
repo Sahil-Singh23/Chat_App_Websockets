@@ -1,8 +1,11 @@
+import type { ReactElement } from "react"
+
 type ButtonProps = {
-    text: string,
+    text?: string,
     onClick: () =>void,
     width: string,
     disabled?: boolean,
+    icon?: ReactElement
 }
 
 const Button = (props: ButtonProps) => {
@@ -13,7 +16,7 @@ const Button = (props: ButtonProps) => {
         onClick={props.onClick}
         disabled={props.disabled}>
         <span className="text-[#14100B] font-sfmono text-lg" >
-          {props.text}
+          {props.text} {props.icon}
         </span>
       </button>
     </div>

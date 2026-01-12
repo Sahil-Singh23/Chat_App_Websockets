@@ -1,36 +1,93 @@
 import ChatIcon from "../icons/ChatIcon"
+import { useLocation } from "react-router-dom"
+import Alert from "../components/Alert"
+import Glow from "../components/Glow"
+import Input from "../components/Input"
+import Button from "../components/Button"
+import { useEffect, useRef, useState } from "react"
+import SendIcon from "../icons/SendIcon"
 
 const Room = () => {
+  const { state } = useLocation()
+  const [msgs,setMsgs] = useState<JSON[]>([])
+  const msgRef = useRef<HTMLInputElement | null>(null);
+  const ws = useRef<WebSocket|null>(null);
+
+  useEffect(()=>{
+    try{
+        ws.current = new WebSocket("ws://localhost:8000/");
+        ws.current.onopen = ()=> console.log("connected")
+        ws.current.onmessage = (e)=>{
+            const data = e.data.parse;
+            setMsgs((m)=> [...m,data])
+        }
+    }catch(e){
+        console.log(e)
+    }
+    return()=>{
+        ws.current?.close();
+        console.log("user disconnected")
+      }
+  },[])
+
+  function sendMessage(){
+    if(!ws.current) return;
+    if (ws.current.readyState !== WebSocket.OPEN) return;
+    if(!msgRef.current) return;
+    const msg = msgRef.current.value;
+    const username = state.nickname;
+    const time = new Date().toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    })
+
+
+  }
+
   return (
-    <section  className="min-h-screen">
-      <div className="flex flex-col bg-white"></div>
-      <div className="flex flex-col items-start self-stretch bg-[#080605] pb-6.25 pl-24.5">
-        <div className="flex flex-col items-start relative pt-[145px] pl-[336px]">
-          <div className="flex flex-col items-start py-[30px] pl-[25px] pr-[26px] rounded-2xl border border-solid border-[#444444]">
-            <div className="flex items-center mb-[9px] gap-[11px]">
+    <section className="min-h-screen bg-[#080605]">
+      {/* {showAlert && (
+        <Alert 
+          message={alertMessage}
+          type={alertType}
+          onClose={() => setShowAlert(false)}
+        />
+      )} */}
+      <Glow></Glow>
+      <div className="flex flex-col items-center justify-center min-h-screen px-3 sm:px-6 lg:px-8">
+        <div className="w-full max-w-full md:max-w-1/2">
+          <div className="flex flex-col items-start p-6 md:p-8 rounded-2xl border border-solid border-neutral-700">
+            <div className="flex items-center mb-3 gap-3">
               <ChatIcon></ChatIcon>
-              <span className="text-[#FFF6E0] text-2xl font-ntbricksans " >
-								{"Anonymous Rooms"}
-							</span>
-              
+              <span className="text-[#FFF6E0] text-xl md:text-2xl font-ntbricksans">
+                {"Anonymous Rooms"}
+              </span>
             </div>
-            <span className="text-white text-sm mb-5" >
-							{"temporary chats that disappears after all users exit"}
-						</span>
-            <div className="flex items-start bg-neutral-800 text-left py-[18px] px-[13px] mb-[13px] rounded-2xl border-0"
-							>
-							<span className="text-white text-sm mr-[278px]" >
-								{"Room Code: 12k12p"}
-							</span>
-							<span className="text-white text-sm" >
-								{"Users: 2"}
-							</span>
-						</div>
+            <span className="text-white text-xs md:text-sm mb-5 font-sfmono opacity-70">
+              {"temporary chats that disappears after all users exit"}
+            </span>
+            <div className="flex justify-between bg-neutral-800 py-4 px-5 mb-3.25 rounded-2xl border-0 w-full">
+              <span className="text-white text-sm">
+                {`Room Code: ${state.roomCode}`}
+              </span>
+              <span className="text-white text-sm">
+                {"Users: 2"}
+              </span>
+            </div>
+            <div className="flex flex-col items-start w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700">
+                {/* all messages will render here */}
+            </div>
+            <div className="flex flex-row mt-4 w-full gap-4 md:gap-2">
+              <Input width="w-5/6" ref={msgRef} placeholder="Type a message"></Input>
+              <span className="hidden md:block w-1/6">
+              <Button width="w-full" onClick={sendMessage} text={"Send"} ></Button></span>
+              <span className="block md:hidden w-1/6">
+                <Button width="w-full" onClick={sendMessage} icon={<SendIcon></SendIcon>} ></Button>
+              </span>
+            </div>
           </div>
         </div>
       </div>
-      
-      
     </section>
   )
 }

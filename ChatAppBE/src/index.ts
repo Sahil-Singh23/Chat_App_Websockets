@@ -77,6 +77,7 @@ wss.on("connection",(socket)=>{
         const room = (socket as any).roomCode;
         if(rooms.get(room)?.has(socket)) rooms.get(room)?.delete(socket);
         if(rooms.get(room)?.size === 0) rooms.delete(room);
+        console.log("user left")
     })
 })
 
