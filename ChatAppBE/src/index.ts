@@ -73,13 +73,24 @@ wss.on("connection",(socket)=>{
             }
             clients.set(socket,{user:username,roomCode});
             rooms.get(roomCode)!.add(socket);
+            const userCount = rooms.get(roomCode)?.size;
             socket.send(JSON.stringify({
                 type: "joined",
                 payload: {
                     roomCode,
-                    user: username
+                    user: username,
+                    userCount
                 }
             }));
+            const sockets = rooms.get(roomCode)!;
+            for(const cur of sockets){
+                if(cur!=socket){
+                    cur.send(JSON.stringify({
+                    type: "user-joined",
+                    payload: { user: username, userCount }
+                }));
+                }
+            }
 
         }else if(data.type==="message"){
             const client = clients.get(socket);
@@ -117,6 +128,18 @@ wss.on("connection",(socket)=>{
         if(!client) return;
         const {user,roomCode} = client;
         rooms.get(roomCode)?.delete(socket);
+        const remainingSockets = rooms.get(roomCode);
+        if(remainingSockets && remainingSockets.size > 0 ){
+            for(const cur of remainingSockets){
+                cur.send(JSON.stringify({
+                    type:"user-left",
+                    payload:{
+                        user,
+                        userCount:remainingSockets.size;
+                    }
+                }))
+            }
+        }
         if(rooms.get(roomCode)?.size === 0) rooms.delete(roomCode);
         clients.delete(socket);
         console.log("user left")
