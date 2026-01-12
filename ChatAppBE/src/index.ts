@@ -2,13 +2,19 @@ import express from "express";
 import { WebSocketServer,WebSocket } from "ws";
 import cors from 'cors';
 import random from "./utils.js";
+import * as dotenv from 'dotenv';
+dotenv.config();
 
-const wss = new WebSocketServer({port:8000});
+const PORT = process.env.PORT || 8000;
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*'
+}));
 
+const server = app.listen(PORT)
+const wss = new WebSocketServer({server});
 
 const rooms = new Map<string,Set<WebSocket>>();
 const clients = new Map<WebSocket,{user:string,roomCode:string}>();
@@ -145,5 +151,4 @@ wss.on("connection",(socket)=>{
         clients.delete(socket);
         console.log("user left")
     })
-})
-app.listen(8001);  
+}) 

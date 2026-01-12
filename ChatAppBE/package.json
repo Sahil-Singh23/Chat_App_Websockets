@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@types/ws": "^8.18.1",
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "ws": "^8.19.0"
   }

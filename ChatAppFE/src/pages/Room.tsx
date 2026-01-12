@@ -23,7 +23,7 @@ const Room = () => {
 
   useEffect(()=>{
     try{
-        ws.current = new WebSocket("ws://localhost:8000/");
+        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:8000');
         ws.current.onopen = ()=>{ 
             console.log("connected")
             if(!ws.current) return;

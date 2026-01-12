@@ -16,11 +16,12 @@ const Landing = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
   const navigate = useNavigate();
+  const fallBackUrl = 'http://localhost:8000';
 
   async function CreateRoom(){
     setIsLoading(true);
     try{
-      const response = await axios.post("http://localhost:8001/api/v1/create")
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || fallBackUrl}/api/v1/create`)
       if(roomRef.current) {
         roomRef.current.value = response.data.roomCode;
         await navigator.clipboard.writeText(response.data.roomCode);
@@ -52,7 +53,7 @@ const Landing = () => {
     }
     
     try{
-      const response = await axios.post(`http://localhost:8001/api/v1/room/${roomCode}`)
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || fallBackUrl}/api/v1/room/${roomCode}`)
       if(response.data) {
         navigate(`/room/${roomCode}`, { state: { nickname,roomCode } });
       }
