@@ -101,7 +101,7 @@ wss.on("connection",(socket)=>{
                 }));
                 return;
             }
-            const {msg} = data.payload || {};
+            const {msg, sessionId} = data.payload || {};
             if (!msg || typeof msg !== "string") {
                 socket.send(JSON.stringify({
                     type: "error",
@@ -116,7 +116,8 @@ wss.on("connection",(socket)=>{
             const sendingData = {type: "message",payload:{
                 msg,
                 user,
-                time
+                time,
+                sessionId
             }} 
             for(const cur of sockets){
                 cur.send(JSON.stringify(sendingData)); 

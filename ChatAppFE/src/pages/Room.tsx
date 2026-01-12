@@ -10,10 +10,11 @@ import Message from "../components/Message"
 
 const Room = () => {
   const { state } = useLocation()
-  const [msgs,setMsgs] = useState<{user:string,msg:string,hours:number,minutes:number}[]>([])
+  const [msgs,setMsgs] = useState<{user:string,msg:string,hours:number,minutes:number,isSelf:boolean}[]>([])
   const msgRef = useRef<HTMLInputElement | null>(null);
   const ws = useRef<WebSocket|null>(null);
   const msgsEndRef = useRef<HTMLDivElement>(null);
+  const sessionId = useRef<string>(crypto.randomUUID());
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -62,11 +63,12 @@ const Room = () => {
                 setAlertMessage(user+" left the room");
                 setAlertType('info');
             }else if(data.type == 'message'){
-                const {time,msg,user} = data.payload;
+                const {time,msg,user,sessionId:msgSessionId} = data.payload;
                 const date = new Date(time);
                 const hours = date.getHours();
                 const minutes = date.getMinutes();
-                const msgObj = {user,msg,hours,minutes};
+                const isSelf = msgSessionId === sessionId.current;
+                const msgObj = {user,msg,hours,minutes,isSelf};
                 setMsgs((m)=>[...m,msgObj])
             }
         }
@@ -88,7 +90,8 @@ const Room = () => {
     ws.current.send(JSON.stringify({
         type:"message",
         payload:{
-            msg
+            msg,
+            sessionId: sessionId.current
         }
     }))
     msgRef.current.value ="";
@@ -121,18 +124,18 @@ const Room = () => {
               {"temporary chats that disappears after all users exit"}
             </span>
             <div className="flex justify-between bg-neutral-800 py-4 px-5 mb-3.25 rounded-2xl border-0 w-full">
-              <span className="text-white text-sm">
+              <span className="text-white/80 text-sm">
                 {`Room Code: ${state.roomCode}`}
               </span>
-              <span className="text-white text-sm">
+              <span className="text-white/80 text-sm">
                 {`Users ${userCount}`}
               </span>
             </div>
             <div 
-              className="flex flex-col w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700 overflow-y-scroll gap-3"
+              className="flex flex-col w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700 overflow-y-auto gap-3"
             >
                 {msgs.map((m,i)=>(
-                    <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user}></Message>
+                    <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user} isSelf={m.isSelf}></Message>
                 ))}
                 <div ref={msgsEndRef}></div>
                 {/* all messages will render here */}
