@@ -21,6 +21,10 @@ const wss = new WebSocketServer({server});
 const rooms = new Map<string,Set<WebSocket>>();
 const clients = new Map<WebSocket,{user:string,roomCode:string}>();
 
+// Health check endpoint for Railway
+app.get("/", (req,res)=>{
+    res.json({status: "ok", message: "Chat server is running"})
+})
 
 app.post("/api/v1/create", (req,res)=>{
     const roomCode = random(6);
