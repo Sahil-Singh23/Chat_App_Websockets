@@ -7,7 +7,7 @@ type AlertProps = {
   duration?: number
 }
 
-const Alert = ({ message, type = 'success', onClose, duration = 3000 }: AlertProps) => {
+const Alert = ({ message, type = 'success', onClose, duration = 2500 }: AlertProps) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose()

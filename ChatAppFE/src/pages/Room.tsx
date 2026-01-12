@@ -6,12 +6,14 @@ import Input from "../components/Input"
 import Button from "../components/Button"
 import { useEffect, useRef, useState } from "react"
 import SendIcon from "../icons/SendIcon"
+import Message from "../components/Message"
 
 const Room = () => {
   const { state } = useLocation()
   const [msgs,setMsgs] = useState<{user:string,msg:string,hours:number,minutes:number}[]>([])
   const msgRef = useRef<HTMLInputElement | null>(null);
   const ws = useRef<WebSocket|null>(null);
+  const msgsEndRef = useRef<HTMLDivElement>(null);
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -21,7 +23,18 @@ const Room = () => {
   useEffect(()=>{
     try{
         ws.current = new WebSocket("ws://localhost:8000/");
-        ws.current.onopen = ()=> console.log("connected")
+        ws.current.onopen = ()=>{ 
+            console.log("connected")
+            if(!ws.current) return;
+            if (ws.current.readyState !== WebSocket.OPEN) return;
+            ws.current.send(JSON.stringify({
+                type:"join",
+                payload:{
+                    roomCode:state.roomCode,
+                    username:state.nickname
+                }
+            }))
+        }
         ws.current.onmessage = (e)=>{
             const data = JSON.parse(e.data);
             if(!data) return;
@@ -71,9 +84,19 @@ const Room = () => {
     if (ws.current.readyState !== WebSocket.OPEN) return;
     if(!msgRef.current) return;
     //write sending msg logic here
-
-
+    const msg = msgRef.current.value;
+    ws.current.send(JSON.stringify({
+        type:"message",
+        payload:{
+            msg
+        }
+    }))
+    msgRef.current.value ="";
   }
+
+  useEffect(()=>{
+    msgsEndRef.current?.scrollIntoView({behavior:"smooth"})
+  },[msgs])
 
   return (
     <section className="min-h-screen bg-[#080605]">
@@ -102,10 +125,16 @@ const Room = () => {
                 {`Room Code: ${state.roomCode}`}
               </span>
               <span className="text-white text-sm">
-                {"Users: 2"}
+                {`Users ${userCount}`}
               </span>
             </div>
-            <div className="flex flex-col items-start w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700">
+            <div 
+              className="flex flex-col w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700 overflow-y-scroll gap-3"
+            >
+                {msgs.map((m,i)=>(
+                    <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user}></Message>
+                ))}
+                <div ref={msgsEndRef}></div>
                 {/* all messages will render here */}
             </div>
             <div className="flex flex-row mt-4 w-full gap-4 md:gap-2">
