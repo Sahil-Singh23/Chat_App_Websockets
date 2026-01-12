@@ -9,17 +9,53 @@ import SendIcon from "../icons/SendIcon"
 
 const Room = () => {
   const { state } = useLocation()
-  const [msgs,setMsgs] = useState<JSON[]>([])
+  const [msgs,setMsgs] = useState<{user:string,msg:string,hours:number,minutes:number}[]>([])
   const msgRef = useRef<HTMLInputElement | null>(null);
   const ws = useRef<WebSocket|null>(null);
+
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
+  const [userCount,setUserCount] = useState<number>(0);
 
   useEffect(()=>{
     try{
         ws.current = new WebSocket("ws://localhost:8000/");
         ws.current.onopen = ()=> console.log("connected")
         ws.current.onmessage = (e)=>{
-            const data = e.data.parse;
-            setMsgs((m)=> [...m,data])
+            const data = JSON.parse(e.data);
+            if(!data) return;
+            if(data.type == "error"){
+                const {message} = data.payload;
+                setShowAlert(true);
+                setAlertMessage(message);
+                setAlertType('error');
+            }else if(data.type == "user-joined"){
+                const {userCount} = data.payload;
+                setUserCount(userCount);
+                setShowAlert(true);
+                setAlertMessage("joined the room");
+                setAlertType('success');
+            }else if(data.type == "user-joined"){
+                const {user,userCount} = data.payload;
+                setUserCount(userCount);
+                setShowAlert(true);
+                setAlertMessage(user+" joined the room");
+                setAlertType('info');
+            }else if(data.type == 'user-left'){
+                const {user,userCount} = data.payload;
+                setUserCount(userCount);
+                setShowAlert(true);
+                setAlertMessage(user+" left the room");
+                setAlertType('info');
+            }else if(data.type == 'message'){
+                const {time,msg,user} = data.payload;
+                const date = new Date(time);
+                const hours = date.getHours();
+                const minutes = date.getMinutes();
+                const msgObj = {user,msg,hours,minutes};
+                setMsgs((m)=>[...m,msgObj])
+            }
         }
     }catch(e){
         console.log(e)
@@ -34,25 +70,20 @@ const Room = () => {
     if(!ws.current) return;
     if (ws.current.readyState !== WebSocket.OPEN) return;
     if(!msgRef.current) return;
-    const msg = msgRef.current.value;
-    const username = state.nickname;
-    const time = new Date().toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    })
+    //write sending msg logic here
 
 
   }
 
   return (
     <section className="min-h-screen bg-[#080605]">
-      {/* {showAlert && (
+      {showAlert && (
         <Alert 
           message={alertMessage}
           type={alertType}
           onClose={() => setShowAlert(false)}
         />
-      )} */}
+      )}
       <Glow></Glow>
       <div className="flex flex-col items-center justify-center min-h-screen px-3 sm:px-6 lg:px-8">
         <div className="w-full max-w-full md:max-w-1/2">

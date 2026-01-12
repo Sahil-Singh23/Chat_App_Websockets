@@ -135,7 +135,7 @@ wss.on("connection",(socket)=>{
                     type:"user-left",
                     payload:{
                         user,
-                        userCount:remainingSockets.size;
+                        userCount:remainingSockets.size
                     }
                 }))
             }
