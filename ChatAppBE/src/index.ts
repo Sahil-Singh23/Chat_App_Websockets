@@ -2,6 +2,7 @@ import express from "express";
 import { WebSocketServer,WebSocket } from "ws";
 import cors from 'cors';
 import random from "./utils.js";
+import { json } from "node:stream/consumers";
 
 const wss = new WebSocketServer({port:8000});
 
@@ -11,6 +12,7 @@ app.use(cors());
 
 
 const rooms = new Map<string,Set<WebSocket>>();
+const clients = new Map<WebSocket,{user:string,roomCode:string}>();
 
 
 app.post("/api/v1/create", (req,res)=>{
@@ -40,43 +42,80 @@ wss.on("connection",(socket)=>{
             return;
         }
         if(data.type==="join"){
-            const room = data.roomCode;
-            if(!room || !rooms.has(room)){
-                socket.send("Invalid room");
+            const {roomCode,username} = data.payload || {};
+           
+            if(!roomCode || !rooms.has(roomCode)){
+                socket.send(JSON.stringify({
+                    type: "error",
+                    payload: { message: "Invalid room" }
+                }));
+
                 return;
             }
-            if (rooms.get(room)?.has(socket)) return;
-
-            if ((socket as any).roomCode) {
-                socket.send("Already joined a room");
+            if(!username || typeof username !=='string'){
+                socket.send(JSON.stringify({
+                    type: "error",
+                    payload: { message: "Invalid username" }
+                }));
                 return;
             }
+            if(clients.has(socket)){
+                socket.send(JSON.stringify({
+                    type: "error",
+                    payload: { message: "Already joined a room" }
+                }));
+                return;
+            }
+            clients.set(socket,{user:username,roomCode});
+            rooms.get(roomCode)!.add(socket);
+            socket.send(JSON.stringify({
+                type: "joined",
+                payload: {
+                    roomCode,
+                    user: username
+                }
+            }));
 
-            (socket as any).roomCode = room;
-            rooms.get(room)?.add(socket);
         }else if(data.type==="message"){
-            const room = (socket as any).roomCode;
-            if (!room) {
-                socket.send("Join a room first");
+            const client = clients.get(socket);
+            if(!client){
+                socket.send(JSON.stringify({
+                    type: "error",
+                    payload: { message: "Join a room first" }
+                }));
                 return;
             }
-            if(!data.message){
-                socket.send("Empty message not allowed")
+            const {msg} = data.payload || {};
+            if (!msg || typeof msg !== "string") {
+                socket.send(JSON.stringify({
+                    type: "error",
+                    payload: { message: "Invalid message" }
+                }));
                 return;
             }
-            const sockets = rooms.get(room);
+            const {user,roomCode} = client
+            const time = Date.now();
+            const sockets = rooms.get(roomCode);
             if(!sockets) return;
+            const sendingData = {type: "message",payload:{
+                msg,
+                user,
+                time
+            }} 
             for(const cur of sockets){
                 if(cur!=socket){
-                    cur.send(data.message);
+                    cur.send(JSON.stringify(sendingData));
                 }
             }
         }  
     })
     socket.on("close",()=>{
-        const room = (socket as any).roomCode;
-        if(rooms.get(room)?.has(socket)) rooms.get(room)?.delete(socket);
-        if(rooms.get(room)?.size === 0) rooms.delete(room);
+        const client = clients.get(socket);
+        if(!client) return;
+        const {user,roomCode} = client;
+        rooms.get(roomCode)?.delete(socket);
+        if(rooms.get(roomCode)?.size === 0) rooms.delete(roomCode);
+        clients.delete(socket);
         console.log("user left")
     })
 })
