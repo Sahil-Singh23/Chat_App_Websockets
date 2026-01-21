@@ -1,5 +1,5 @@
 import ChatIcon from "../icons/ChatIcon"
-import { useLocation } from "react-router-dom"
+import { useLocation, useParams } from "react-router-dom"
 import Alert from "../components/Alert"
 import Glow from "../components/Glow"
 import Input from "../components/Input"
@@ -7,6 +7,15 @@ import Button from "../components/Button"
 import { useEffect, useRef, useState } from "react"
 import SendIcon from "../icons/SendIcon"
 import Message from "../components/Message"
+
+
+interface StoredSession{
+  roomCode: string ,
+  sessionId: string,
+  nickname: string,
+  lastMessageTime: number,
+  timestamp : number
+}
 
 const Room = () => {
   const { state } = useLocation()
@@ -21,6 +30,23 @@ const Room = () => {
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
   const [userCount,setUserCount] = useState<number>(0);
 
+  function saveSession() {
+    const session: StoredSession = {
+      roomCode: state.roomCode,
+      nickname: state.nickname,
+      sessionId: sessionId.current,
+      lastMessageTime: Date.now(),
+      timestamp: Date.now()
+    }
+    localStorage.setItem('chatSession',JSON.stringify(session))
+  }
+
+  function getSession(){
+    const session: string|null = localStorage.getItem('chatSession')
+    if(!session) return;
+    return JSON.parse(session);
+  }
+
   useEffect(()=>{
     try{
         ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:8000');
@@ -28,28 +54,49 @@ const Room = () => {
             console.log("connected")
             if(!ws.current) return;
             if (ws.current.readyState !== WebSocket.OPEN) return;
-            ws.current.send(JSON.stringify({
+            const stored: StoredSession|null = getSession();
+            const {roomCodeFromUrl} = useParams();
+            if(stored && stored.roomCode == roomCodeFromUrl){
+              ws.current.send(JSON.stringify({
+                type:"reconnect",
+                payload:{
+                    roomCode:stored.roomCode,
+                    sessionId: stored.sessionId,
+                    lastMessageTime: stored.lastMessageTime
+                }
+              }))
+            }
+            else{
+              ws.current.send(JSON.stringify({
                 type:"join",
                 payload:{
                     roomCode:state.roomCode,
                     username:state.nickname
                 }
-            }))
+              }))
+            }
+            
         }
         ws.current.onmessage = (e)=>{
             const data = JSON.parse(e.data);
             if(!data) return;
             if(data.type == "error"){
                 const {message} = data.payload;
+                if(message.includes('expired')){
+
+                }
                 setShowAlert(true);
                 setAlertMessage(message);
                 setAlertType('error');
             }else if(data.type == "joined"){
-                const {userCount} = data.payload;
+                const {userCount,pastMsgs} = data.payload;
                 setUserCount(userCount);
                 setShowAlert(true);
                 setAlertMessage("joined the room");
                 setAlertType('success');
+                setMsgs((m)=>[...m,...pastMsgs]);
+
+                saveSession();
             }else if(data.type == "user-joined"){
                 const {user,userCount} = data.payload;
                 setUserCount(userCount);
@@ -70,6 +117,15 @@ const Room = () => {
                 const isSelf = msgSessionId === sessionId.current;
                 const msgObj = {user,msg,hours,minutes,isSelf};
                 setMsgs((m)=>[...m,msgObj])
+                const session = getSession();
+                const updatedSession: StoredSession = JSON.parse(session);
+                updatedSession.lastMessageTime = time;
+                localStorage.setItem('chatSession',JSON.stringify (updatedSession))
+            }else if(data.type == 'reconnected'){
+              const {msgs,userCount} = data.payload();
+              setMsgs((m)=>[...m,...msgs]);
+              setUserCount(userCount);
+
             }
         }
     }catch(e){

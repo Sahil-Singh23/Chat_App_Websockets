@@ -9,7 +9,7 @@ const PORT = Number(process.env.PORT) || 8000;
 
 const app = express();
 app.use(express.json());
-app.use(cors({
+app.use(cors({ 
   origin: process.env.FRONTEND_URL || '*'
 }));
 
@@ -18,8 +18,29 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 const wss = new WebSocketServer({server});
 
-const rooms = new Map<string,Set<WebSocket>>();
-const clients = new Map<WebSocket,{user:string,roomCode:string}>();
+
+interface Message{
+    msg: string,
+    user: string,
+    time:number,
+    sessionId: string,
+}
+interface RoomData{
+    messageHistory: Message[],
+    createdAt: number,
+    clientsMap: Map<string,ClientInfo>
+}
+interface ClientInfo{
+    socket: WebSocket,
+    user: string,
+    lastSeen: number,
+    lastMessageTime: number,
+    disconnectTimeout?: NodeJS.Timeout 
+}
+
+const rooms = new Map<string,RoomData>();
+// const rooms = new Map<string,Set<WebSocket>>();
+const clients = new Map<WebSocket,{user:string,roomCode:string, sessionId:string}>();
 
 // Health check endpoint for Railway
 app.get("/", (req,res)=>{
@@ -28,7 +49,11 @@ app.get("/", (req,res)=>{
 
 app.post("/api/v1/create", (req,res)=>{
     const roomCode = random(6);
-    rooms.set(roomCode,new Set<WebSocket>());
+    rooms.set(roomCode,{
+        messageHistory: [],
+        createdAt: Date.now(),
+        clientsMap: new Map<string,ClientInfo>()
+    });
     res.json({
         roomCode
     })
@@ -43,7 +68,7 @@ app.post("/api/v1/room/:roomCode",(req,res)=>{
 
 
 wss.on("connection",(socket)=>{
-    console.log("User connected ");
+    //console.log("User connected ");
     socket.on("message",(e)=>{
         let data;
         try{
@@ -53,7 +78,7 @@ wss.on("connection",(socket)=>{
             return;
         }
         if(data.type==="join"){
-            const {roomCode,username} = data.payload || {};
+            const {roomCode,username,sessionId} = data.payload || {};
            if(!data.payload) {
                 socket.send(JSON.stringify({
                     type: "error",
@@ -83,21 +108,29 @@ wss.on("connection",(socket)=>{
                 }));
                 return;
             }
-            clients.set(socket,{user:username,roomCode});
-            rooms.get(roomCode)!.add(socket);
-            const userCount = rooms.get(roomCode)?.size;
+            clients.set(socket,{user:username,roomCode,sessionId});
+            rooms.get(roomCode)!.clientsMap.set(sessionId,{
+                socket:socket,
+                user:username,
+                lastSeen: Date.now(),
+                lastMessageTime: Date.now()
+            });
+            const pastMsgs = rooms.get(roomCode)?.messageHistory;
+            const userCount = rooms.get(roomCode)?.clientsMap.size;
             socket.send(JSON.stringify({
                 type: "joined",
                 payload: {
                     roomCode,
                     user: username,
-                    userCount
+                    userCount,
+                    pastMsgs
                 }
             }));
-            const sockets = rooms.get(roomCode)!;
+            let sockets: Map<string,ClientInfo> = rooms.get(roomCode)!.clientsMap;
+
             for(const cur of sockets){
-                if(cur!=socket){
-                    cur.send(JSON.stringify({
+                if(cur[0]!=sessionId){
+                    cur[1].socket.send(JSON.stringify({
                     type: "user-joined",
                     payload: { user: username, userCount }
                 }));
@@ -113,7 +146,7 @@ wss.on("connection",(socket)=>{
                 }));
                 return;
             }
-            const {msg, sessionId} = data.payload || {};
+            const {msg} = data.payload || {};
             if (!msg || typeof msg !== "string") {
                 socket.send(JSON.stringify({
                     type: "error",
@@ -121,40 +154,144 @@ wss.on("connection",(socket)=>{
                 }));
                 return;
             }
-            const {user,roomCode} = client
+            const {user,roomCode,sessionId} = client
+            const roomData = rooms.get(roomCode);
+            if(!roomData) return ; 
             const time = Date.now();
-            const sockets = rooms.get(roomCode);
-            if(!sockets) return;
-            const sendingData = {type: "message",payload:{
-                msg,
+
+            const msgObj : Message ={
+                msg:msg,
                 user,
                 time,
                 sessionId
-            }} 
-            for(const cur of sockets){
-                cur.send(JSON.stringify(sendingData)); 
             }
-        }  
+            roomData.messageHistory.push(msgObj);
+            if(roomData.messageHistory.length > 100) {
+                roomData.messageHistory.shift();
+            }
+            const sendingData = {type: "message",payload:msgObj} 
+            let sockets: Map<string,ClientInfo> = rooms.get(roomCode)!.clientsMap;
+            if(!sockets) return;
+            for(const cur of sockets){
+                cur[1].socket.send(JSON.stringify(sendingData)); 
+            }
+        } else if(data.type==="reconnect"){
+            const {roomCode,sessionId,lastMessageTime} = data.payload || {};
+
+            // Check if room exists
+            // Check if sessionId was in this room before
+            // Replace old socket with new socket
+            // Send missed messages
+            if(!sessionId) return;
+            if(!roomCode || !rooms.get(roomCode)){
+                socket.send(JSON.stringify({
+                    type:"error",
+                    payload:{
+                        message:"Room closed"
+                    }
+                }))
+                return;
+            }
+            const roomData = rooms.get(roomCode)
+            if(!roomData) return;
+            const userData : ClientInfo| undefined= roomData.clientsMap.get(sessionId);
+            if(!userData){
+                socket.send(JSON.stringify({
+                    type:"error",
+                    payload:{
+                        message:"session expired"
+                    }
+                }))
+                return;
+            }
+        
+            if (userData.disconnectTimeout) {
+                clearTimeout(userData.disconnectTimeout);
+                
+            }
+            const oldSocket = userData.socket;
+            oldSocket.close();
+            const msgsToSend =
+                roomData.messageHistory.filter(
+                    msg => msg.time > userData.lastSeen 
+                );
+            
+            roomData?.clientsMap.set(sessionId,{
+                socket,
+                user: userData.user,
+                lastSeen: Date.now(),
+                lastMessageTime,
+            });
+            clients.set(socket, {user: userData.user, roomCode, sessionId});
+            socket.send(JSON.stringify({
+                type: "reconnected",
+                payload:{
+                    user: userData.user,
+                    roomCode,
+                    userCount: roomData?.clientsMap.size,
+                    msgsToSend
+                }
+            }))
+        } else if(data.type==="typing"){
+            const clientData = clients.get(socket);
+            if(!clientData) return;
+            const {user,roomCode,sessionId} = clientData
+            const roomData = rooms.get(roomCode);
+            const roomClients = roomData?.clientsMap;
+            if(!roomClients) return;
+            for(let cur of roomClients){
+                if(cur[1].socket!=socket){
+                    cur[1].socket.send(JSON.stringify({
+                        type: "typing",
+                        payload:{
+                            user,
+                            isTyping: true
+                        }
+                    }))
+                }
+            }
+            
+
+        }
     })
     socket.on("close",()=>{
         const client = clients.get(socket);
         if(!client) return;
-        const {user,roomCode} = client;
-        rooms.get(roomCode)?.delete(socket);
-        const remainingSockets = rooms.get(roomCode);
-        if(remainingSockets && remainingSockets.size > 0 ){
-            for(const cur of remainingSockets){
-                cur.send(JSON.stringify({
+        
+        const {user, roomCode, sessionId} = client;
+        // Mark lastSeen timestamp
+        // Set 30-second timeout
+        // If no reconnect in 30s → then broadcast "user-left"
+        const roomData = rooms.get(roomCode);
+        if(!roomData) return;
+        const clientData = roomData.clientsMap.get(sessionId);
+        if(!clientData) return;
+        clientData.lastSeen = Date.now();
+
+        function deleteUser(){
+            clients.delete(socket);
+            roomData?.clientsMap.delete(sessionId);
+            const roomClients = roomData?.clientsMap;
+            if(roomClients && roomClients.size>0){
+                for(const cur of roomClients){
+                    cur[1].socket.send(JSON.stringify({
                     type:"user-left",
                     payload:{
                         user,
-                        userCount:remainingSockets.size
+                        userCount:roomClients.size
                     }
                 }))
+                }
+            }if(roomClients?.size===0){
+                rooms.delete(roomCode);
             }
         }
-        if(rooms.get(roomCode)?.size === 0) rooms.delete(roomCode);
-        clients.delete(socket);
-        console.log("user left")
+
+        const timer = setTimeout(deleteUser,60*1000);
     })
 }) 
+
+
+
+
+ 
