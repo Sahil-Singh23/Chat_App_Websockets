@@ -71,7 +71,8 @@ const Room = () => {
                 type:"join",
                 payload:{
                     roomCode:state.roomCode,
-                    username:state.nickname
+                    username:state.nickname,
+                    sessionId: sessionId.current
                 }
               }))
             }
@@ -83,7 +84,20 @@ const Room = () => {
             if(data.type == "error"){
                 const {message} = data.payload;
                 if(message.includes('expired')){
-
+                    const stored:StoredSession|null = getSession();
+                    if(stored && ws.current){
+                      ws.current.send(JSON.stringify({
+                        type:"join",
+                        payload:{
+                            roomCode:stored.roomCode,
+                            username:stored.nickname,
+                            sessionId: sessionId.current
+                        }}))
+                        setShowAlert(true);
+                        setAlertMessage("Reconnected to room");
+                        setAlertType('info');
+                    }
+                    return;
                 }
                 setShowAlert(true);
                 setAlertMessage(message);
@@ -95,7 +109,6 @@ const Room = () => {
                 setAlertMessage("joined the room");
                 setAlertType('success');
                 setMsgs((m)=>[...m,...pastMsgs]);
-
                 saveSession();
             }else if(data.type == "user-joined"){
                 const {user,userCount} = data.payload;
