@@ -25,7 +25,7 @@ const Landing = () => {
       if(roomRef.current) {
         roomRef.current.value = response.data.roomCode;
         //await navigator.clipboard.writeText(response.data.roomCode);
-        setAlertMessage("Room code copied to clipboard!");
+        setAlertMessage("Room created!");
         setAlertType('success');
         setShowAlert(true);
       }

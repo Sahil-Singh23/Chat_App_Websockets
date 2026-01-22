@@ -101,6 +101,7 @@ const Room = () => {
                         setAlertMessage("Reconnected to room");
                         setAlertType('info');
                     }
+                    localStorage.removeItem('chatSession');
                     return;
                 }
                 setShowAlert(true);
@@ -135,13 +136,15 @@ const Room = () => {
                 const msgObj = {user,msg,hours,minutes,isSelf};
                 setMsgs((m)=>[...m,msgObj])
                 const session = getSession();
-                
-                session.lastMessageTime = time;
-                localStorage.setItem('chatSession',JSON.stringify (session))
+                if(session){
+                  session.lastMessageTime = time;
+                  localStorage.setItem('chatSession',JSON.stringify (session))
+                }
             }else if(data.type == 'reconnected'){
               const {msgs,userCount} = data.payload;
               setMsgs((m)=>[...m,...msgs]);
               setUserCount(userCount);
+              saveSession();
 
             }
         }
