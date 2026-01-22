@@ -4,6 +4,7 @@ import Glow from "../components/Glow"
 import Input from "../components/Input"
 import Button from "../components/Button"
 import { useEffect, useRef, useState } from "react"
+// import { useNavigate } from "react-router-dom"
 import SendIcon from "../icons/SendIcon"
 import Message from "../components/Message"
 import { v4 as uuidv4 } from 'uuid'
@@ -21,11 +22,10 @@ const Room = () => {
   const msgRef = useRef<HTMLInputElement | null>(null);
   const ws = useRef<WebSocket|null>(null);
   const msgsEndRef = useRef<HTMLDivElement>(null);
-  const sessionId = useRef<string>(uuidv4());
-  const mountData = localStorage.getItem('newChatSession');
-  if(!mountData) return;
-  const {nickname,roomCode} = JSON.parse(mountData);
-
+  const [isValid, setIsValid] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [roomCode, setRoomCode] = useState('');
+  const [sessionId] = useState(() => uuidv4());
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -36,7 +36,7 @@ const Room = () => {
     const session: StoredSession = {
       roomCode: roomCode,
       nickname: nickname,
-      sessionId: sessionId.current,
+      sessionId: sessionId,
       lastMessageTime: Date.now(),
       timestamp: Date.now()
     }
@@ -51,7 +51,18 @@ const Room = () => {
   
 
   useEffect(()=>{
+    
     try{
+      const mountData = localStorage.getItem('newChatSession');
+      if (!mountData) {
+        window.location.href = '/'; // Redirect instead of returning null
+        return;
+      }
+      const data = JSON.parse(mountData);
+      setNickname(data.nickname);
+      setRoomCode(data.roomCode);
+      setIsValid(true);
+   
         ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://10.46.232.134:8000');
         ws.current.onopen = ()=>{ 
             console.log("connected")
@@ -75,7 +86,7 @@ const Room = () => {
                 payload:{
                     roomCode:roomCode,
                     username:nickname,
-                    sessionId: sessionId.current
+                    sessionId: sessionId
                 }
               }))
               saveSession();
@@ -89,24 +100,29 @@ const Room = () => {
                 const {message} = data.payload;
                 if(message.includes('expired')){
                     const stored:StoredSession|null = getSession();
-                    if(stored && ws.current){
+                    if(stored && ws.current){ 
                       ws.current.send(JSON.stringify({
                         type:"join",
                         payload:{
                             roomCode:stored.roomCode,
                             username:stored.nickname,
-                            sessionId: sessionId.current
+                            sessionId: sessionId
                         }}))
                         setShowAlert(true);
                         setAlertMessage("Reconnected to room");
                         setAlertType('info');
+                    }else{
+                      localStorage.removeItem('chatSession');
+                      window.location.href = '/'; 
+                      return;
                     }
-                    localStorage.removeItem('chatSession');
+                    
                     return;
+                }else{
+                  setShowAlert(true);
+                  setAlertMessage(message);
+                  setAlertType('error');
                 }
-                setShowAlert(true);
-                setAlertMessage(message);
-                setAlertType('error');
             }else if(data.type == "joined"){
                 const {userCount,pastMsgs} = data.payload;
                 setUserCount(userCount);
@@ -132,7 +148,7 @@ const Room = () => {
                 const date = new Date(time);
                 const hours = date.getHours();
                 const minutes = date.getMinutes();
-                const isSelf = msgSessionId === sessionId.current;
+                const isSelf = msgSessionId === sessionId;
                 const msgObj = {user,msg,hours,minutes,isSelf};
                 setMsgs((m)=>[...m,msgObj])
                 const session = getSession();
@@ -156,6 +172,7 @@ const Room = () => {
         console.log("user disconnected")
       }
   },[])
+    if (!isValid) return null;
 
   function sendMessage(){
     if(!ws.current) return;
@@ -167,7 +184,7 @@ const Room = () => {
         type:"message",
         payload:{
             msg,
-            sessionId: sessionId.current
+            sessionId: sessionId
         }
     }))
     msgRef.current.value ="";
