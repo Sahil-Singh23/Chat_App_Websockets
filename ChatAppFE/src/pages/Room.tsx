@@ -1,5 +1,5 @@
 import ChatIcon from "../icons/ChatIcon"
-import { useLocation, useParams } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import Alert from "../components/Alert"
 import Glow from "../components/Glow"
 import Input from "../components/Input"
@@ -10,7 +10,7 @@ import Message from "../components/Message"
 
 
 interface StoredSession{
-  roomCode: string ,
+  roomCode: string|undefined ,
   sessionId: string,
   nickname: string,
   lastMessageTime: number,
@@ -18,12 +18,16 @@ interface StoredSession{
 }
 
 const Room = () => {
-  const { state } = useLocation()
   const [msgs,setMsgs] = useState<{user:string,msg:string,hours:number,minutes:number,isSelf:boolean}[]>([])
   const msgRef = useRef<HTMLInputElement | null>(null);
   const ws = useRef<WebSocket|null>(null);
   const msgsEndRef = useRef<HTMLDivElement>(null);
   const sessionId = useRef<string>(crypto.randomUUID());
+  const { roomCodeFromUrl } = useParams<{ roomCodeFromUrl: string }>()
+  const mountData = localStorage.getItem('chatSession');
+  if(!mountData) return;
+  const {nickname} = JSON.parse(mountData);
+
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -32,8 +36,8 @@ const Room = () => {
 
   function saveSession() {
     const session: StoredSession = {
-      roomCode: state.roomCode,
-      nickname: state.nickname,
+      roomCode: roomCodeFromUrl,
+      nickname: nickname,
       sessionId: sessionId.current,
       lastMessageTime: Date.now(),
       timestamp: Date.now()
@@ -46,16 +50,16 @@ const Room = () => {
     if(!session) return;
     return JSON.parse(session);
   }
+  
 
   useEffect(()=>{
     try{
-        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:8000');
+        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://192.0.0.2:8000');
         ws.current.onopen = ()=>{ 
             console.log("connected")
             if(!ws.current) return;
             if (ws.current.readyState !== WebSocket.OPEN) return;
             const stored: StoredSession|null = getSession();
-            const {roomCodeFromUrl} = useParams();
             if(stored && stored.roomCode == roomCodeFromUrl){
               ws.current.send(JSON.stringify({
                 type:"reconnect",
@@ -65,16 +69,18 @@ const Room = () => {
                     lastMessageTime: stored.lastMessageTime
                 }
               }))
+
             }
             else{
               ws.current.send(JSON.stringify({
                 type:"join",
                 payload:{
-                    roomCode:state.roomCode,
-                    username:state.nickname,
+                    roomCode:roomCodeFromUrl,
+                    username:nickname,
                     sessionId: sessionId.current
                 }
               }))
+              saveSession();
             }
             
         }
@@ -131,11 +137,11 @@ const Room = () => {
                 const msgObj = {user,msg,hours,minutes,isSelf};
                 setMsgs((m)=>[...m,msgObj])
                 const session = getSession();
-                const updatedSession: StoredSession = JSON.parse(session);
-                updatedSession.lastMessageTime = time;
-                localStorage.setItem('chatSession',JSON.stringify (updatedSession))
+                
+                session.lastMessageTime = time;
+                localStorage.setItem('chatSession',JSON.stringify (session))
             }else if(data.type == 'reconnected'){
-              const {msgs,userCount} = data.payload();
+              const {msgs,userCount} = data.payload;
               setMsgs((m)=>[...m,...msgs]);
               setUserCount(userCount);
 
@@ -194,7 +200,7 @@ const Room = () => {
             </span>
             <div className="flex justify-between bg-neutral-800 py-4 px-5 mb-3.25 rounded-2xl border-0 w-full">
               <span className="text-white/80 text-sm">
-                {`Room Code: ${state.roomCode}`}
+                {`Room Code: ${roomCodeFromUrl}`}
               </span>
               <span className="text-white/80 text-sm">
                 {`Users ${userCount}`}

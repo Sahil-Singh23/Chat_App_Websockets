@@ -16,7 +16,7 @@ const Landing = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
   const navigate = useNavigate();
-  const fallBackUrl = 'http://localhost:8000';
+  const fallBackUrl = 'http://192.0.0.2:8000';
 
   async function CreateRoom(){
     setIsLoading(true);
@@ -55,7 +55,8 @@ const Landing = () => {
     try{
       const response = await axios.post(`${import.meta.env.VITE_API_URL || fallBackUrl}/api/v1/room/${roomCode}`)
       if(response.data) {
-        navigate(`/room/${roomCode}`, { state: { nickname,roomCode } });
+        localStorage.setItem('chatSession', JSON.stringify({ roomCode, nickname }));
+        navigate(`/room/${roomCode}`);
       }
     }catch(e: any){
       if(e.response?.status === 404) {
