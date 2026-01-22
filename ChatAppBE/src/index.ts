@@ -286,6 +286,7 @@ wss.on("connection",(socket)=>{
         }
 
         const timer = setTimeout(deleteUser,60*1000);
+        clientData.disconnectTimeout = timer;
     })
 }) 
 

@@ -1,5 +1,4 @@
 import ChatIcon from "../icons/ChatIcon"
-import { useParams } from "react-router-dom"
 import Alert from "../components/Alert"
 import Glow from "../components/Glow"
 import Input from "../components/Input"
@@ -7,10 +6,10 @@ import Button from "../components/Button"
 import { useEffect, useRef, useState } from "react"
 import SendIcon from "../icons/SendIcon"
 import Message from "../components/Message"
-
+import { v4 as uuidv4 } from 'uuid'
 
 interface StoredSession{
-  roomCode: string|undefined ,
+  roomCode: string ,
   sessionId: string,
   nickname: string,
   lastMessageTime: number,
@@ -22,11 +21,10 @@ const Room = () => {
   const msgRef = useRef<HTMLInputElement | null>(null);
   const ws = useRef<WebSocket|null>(null);
   const msgsEndRef = useRef<HTMLDivElement>(null);
-  const sessionId = useRef<string>(crypto.randomUUID());
-  const { roomCodeFromUrl } = useParams<{ roomCodeFromUrl: string }>()
-  const mountData = localStorage.getItem('chatSession');
+  const sessionId = useRef<string>(uuidv4());
+  const mountData = localStorage.getItem('newChatSession');
   if(!mountData) return;
-  const {nickname} = JSON.parse(mountData);
+  const {nickname,roomCode} = JSON.parse(mountData);
 
 
   const [showAlert, setShowAlert] = useState(false);
@@ -36,7 +34,7 @@ const Room = () => {
 
   function saveSession() {
     const session: StoredSession = {
-      roomCode: roomCodeFromUrl,
+      roomCode: roomCode,
       nickname: nickname,
       sessionId: sessionId.current,
       lastMessageTime: Date.now(),
@@ -54,13 +52,13 @@ const Room = () => {
 
   useEffect(()=>{
     try{
-        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://192.0.0.2:8000');
+        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://10.46.232.134:8000');
         ws.current.onopen = ()=>{ 
             console.log("connected")
             if(!ws.current) return;
             if (ws.current.readyState !== WebSocket.OPEN) return;
             const stored: StoredSession|null = getSession();
-            if(stored && stored.roomCode == roomCodeFromUrl){
+            if(stored && stored.roomCode == roomCode){
               ws.current.send(JSON.stringify({
                 type:"reconnect",
                 payload:{
@@ -75,7 +73,7 @@ const Room = () => {
               ws.current.send(JSON.stringify({
                 type:"join",
                 payload:{
-                    roomCode:roomCodeFromUrl,
+                    roomCode:roomCode,
                     username:nickname,
                     sessionId: sessionId.current
                 }
@@ -200,7 +198,7 @@ const Room = () => {
             </span>
             <div className="flex justify-between bg-neutral-800 py-4 px-5 mb-3.25 rounded-2xl border-0 w-full">
               <span className="text-white/80 text-sm">
-                {`Room Code: ${roomCodeFromUrl}`}
+                {`Room Code: ${roomCode}`}
               </span>
               <span className="text-white/80 text-sm">
                 {`Users ${userCount}`}

@@ -16,7 +16,7 @@ const Landing = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
   const navigate = useNavigate();
-  const fallBackUrl = 'http://192.0.0.2:8000';
+  const fallBackUrl = 'http://10.46.232.134:8000';
 
   async function CreateRoom(){
     setIsLoading(true);
@@ -24,7 +24,7 @@ const Landing = () => {
       const response = await axios.post(`${import.meta.env.VITE_API_URL || fallBackUrl}/api/v1/create`)
       if(roomRef.current) {
         roomRef.current.value = response.data.roomCode;
-        await navigator.clipboard.writeText(response.data.roomCode);
+        //await navigator.clipboard.writeText(response.data.roomCode);
         setAlertMessage("Room code copied to clipboard!");
         setAlertType('success');
         setShowAlert(true);
@@ -55,7 +55,7 @@ const Landing = () => {
     try{
       const response = await axios.post(`${import.meta.env.VITE_API_URL || fallBackUrl}/api/v1/room/${roomCode}`)
       if(response.data) {
-        localStorage.setItem('chatSession', JSON.stringify({ roomCode, nickname }));
+        localStorage.setItem('newChatSession', JSON.stringify({ roomCode, nickname }));
         navigate(`/room/${roomCode}`);
       }
     }catch(e: any){
