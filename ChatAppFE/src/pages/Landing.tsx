@@ -16,7 +16,7 @@ const Landing = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
   const navigate = useNavigate();
-  const fallBackUrl = 'http://192.168.29.62:8000';
+  const fallBackUrl = 'http://192.168.1.21:8000';
 
   async function CreateRoom(){
     setIsLoading(true);

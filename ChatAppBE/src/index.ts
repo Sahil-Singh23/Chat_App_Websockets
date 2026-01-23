@@ -4,9 +4,7 @@ import cors from 'cors';
 import random from "./utils.js";
 import * as dotenv from 'dotenv';
 dotenv.config();
-
 const PORT = Number(process.env.PORT) || 8000;
-
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -15,7 +13,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 const wss = new WebSocketServer({server});
-
 
 interface Message{
     msg: string,
@@ -26,16 +23,18 @@ interface Message{
 interface RoomData{
     messageHistory: Message[],
     createdAt: number,
+    //session id -> their data 
     clientsMap: Map<string,ClientInfo>
 }
 interface ClientInfo{
     socket: WebSocket,
     user: string,
     lastSeen: number,
-    lastMessageTime: number,
+   // lastMessageTime: number,
     disconnectTimeout?: NodeJS.Timeout 
 }
 
+//roomcode -> roomdata 
 const rooms = new Map<string,RoomData>();
 // const rooms = new Map<string,Set<WebSocket>>();
 const clients = new Map<WebSocket,{user:string,roomCode:string, sessionId:string}>();
@@ -44,7 +43,6 @@ const clients = new Map<WebSocket,{user:string,roomCode:string, sessionId:string
 app.get("/", (req,res)=>{
     res.json({status: "ok", message: "Chat server is running"})
 })
-
 app.post("/api/v1/create", (req,res)=>{
     const roomCode = random(6);
     rooms.set(roomCode,{
@@ -56,7 +54,6 @@ app.post("/api/v1/create", (req,res)=>{
         roomCode
     })
 })
-
 app.post("/api/v1/room/:roomCode",(req,res)=>{
     if(rooms.has(req.params.roomCode))
         return res.json({message:"Valid room"})
@@ -64,9 +61,8 @@ app.post("/api/v1/room/:roomCode",(req,res)=>{
         return res.status(404).json({message:"Invalid room"})
 })
 
-
 wss.on("connection",(socket)=>{
-    //console.log("User connected ");
+    //user enters here 
     socket.on("message",(e)=>{
         let data;
         try{
@@ -76,7 +72,7 @@ wss.on("connection",(socket)=>{
             return;
         }
         if(data.type==="join"){
-            const {roomCode,username,sessionId} = data.payload || {};
+            const {roomCode,username,sessionId,lastMessageTime} = data.payload || {};
            if(!data.payload) {
                 socket.send(JSON.stringify({
                     type: "error",
@@ -87,7 +83,7 @@ wss.on("connection",(socket)=>{
             if(!roomCode || !rooms.has(roomCode)){
                 socket.send(JSON.stringify({
                     type: "error",
-                    payload: { message: "Invalid room" }
+                    payload: { message: "Room closed" }
                 }));
 
                 return;
@@ -106,36 +102,57 @@ wss.on("connection",(socket)=>{
                 }));
                 return;
             }
-            clients.set(socket,{user:username,roomCode,sessionId});
-            rooms.get(roomCode)!.clientsMap.set(sessionId,{
-                socket:socket,
-                user:username,
-                lastSeen: Date.now(),
-                lastMessageTime: Date.now()
-            });
-            const pastMsgs = rooms.get(roomCode)?.messageHistory;
-            const userCount = rooms.get(roomCode)?.clientsMap.size;
-            socket.send(JSON.stringify({
-                type: "joined",
-                payload: {
-                    roomCode,
-                    user: username,
-                    userCount,
-                    pastMsgs
-                }
-            }));
-            let sockets: Map<string,ClientInfo> = rooms.get(roomCode)!.clientsMap;
+            else{
+                const roomData = rooms.get(roomCode);
+                if(!roomData) return; 
+                const {clientsMap} = roomData;
+                if(clientsMap.has(sessionId)){
+                    //session id exists reconnect flow, back within a minute
+                    //1. replace the old socket, 
+                    //2. clear timeout on them 
+                    const clientInfo = clientsMap.get(sessionId);
+                    if(!clientInfo) return;
+                    clearTimeout(clientInfo.disconnectTimeout);
+                    if(clientInfo.socket)  clientInfo.socket.close();
+                    clientInfo.socket = socket;
+                    
+                }else{
+                    //new joining , since session id does nt exists , so ill broadcast to everyone 
+                    const allSockets = roomData.clientsMap;
+                    const userCount = allSockets.size;
+                    for(const cur of allSockets){
+                        if(cur[0]!=sessionId){
+                            cur[1].socket.send(JSON.stringify({
+                                type: "user-joined",
+                                payload: { user: username, userCount }
+                            }));
+                        }
+                    }
 
-            for(const cur of sockets){
-                if(cur[0]!=sessionId){
-                    cur[1].socket.send(JSON.stringify({
-                    type: "user-joined",
-                    payload: { user: username, userCount }
-                }));
                 }
+                //update both maps here regardless rejoin or join , with new socket which replaces the old one 
+                clientsMap.set(sessionId,{
+                    socket:socket,
+                    user:username,
+                    lastSeen: Date.now(),
+                });
+                clients.set(socket,{user:username,roomCode,sessionId});
+                //send msgs now based on the last message time 
+                const {messageHistory} = roomData;
+                const msgs = messageHistory.filter((m)=> m.time>lastMessageTime);
+                socket.send(JSON.stringify({
+                    type: "joined",
+                    payload: {
+                        roomCode,
+                        user: username,
+                        userCount: clientsMap.size,
+                        msgs
+                    }
+                }))
             }
-
-        }else if(data.type==="message"){
+            
+        }
+        else if(data.type==="message"){
             const client = clients.get(socket);
             if(!client){
                 socket.send(JSON.stringify({
@@ -173,64 +190,9 @@ wss.on("connection",(socket)=>{
             for(const cur of sockets){
                 cur[1].socket.send(JSON.stringify(sendingData)); 
             }
-        } else if(data.type==="reconnect"){
-            const {roomCode,sessionId,lastMessageTime} = data.payload || {};
-
-            // Check if room exists
-            // Check if sessionId was in this room before
-            // Replace old socket with new socket
-            // Send missed messages
-            if(!sessionId) return;
-            if(!roomCode || !rooms.get(roomCode)){
-                socket.send(JSON.stringify({
-                    type:"error",
-                    payload:{
-                        message:"Room closed"
-                    }
-                }))
-                return;
-            }
-            const roomData = rooms.get(roomCode)
-            if(!roomData) return;
-            const userData : ClientInfo| undefined= roomData.clientsMap.get(sessionId);
-            if(!userData){
-                socket.send(JSON.stringify({
-                    type:"error",
-                    payload:{
-                        message:"session expired"
-                    }
-                }))
-                return;
-            }
+         }
         
-            if (userData.disconnectTimeout) {
-                clearTimeout(userData.disconnectTimeout);
-                
-            }
-            const oldSocket = userData.socket;
-            oldSocket.close();
-            const msgsToSend =roomData.messageHistory
-                // roomData.messageHistory.filter(
-                //     msg => msg.time > lastMessageTime 
-                // );
-            
-            roomData?.clientsMap.set(sessionId,{
-                socket,
-                user: userData.user,
-                lastSeen: Date.now(),
-                lastMessageTime,
-            });
-            clients.set(socket, {user: userData.user, roomCode, sessionId});
-            socket.send(JSON.stringify({
-                type: "reconnected",
-                payload:{
-                    user: userData.user,
-                    roomCode,
-                    userCount: roomData?.clientsMap.size,
-                    msgsToSend
-                }
-            }))
-        } else if(data.type==="typing"){
+        else if(data.type==="typing"){
             const clientData = clients.get(socket);
             if(!clientData) return;
             const {user,roomCode,sessionId} = clientData
@@ -267,6 +229,7 @@ wss.on("connection",(socket)=>{
         clientData.lastSeen = Date.now();
 
         function deleteUser(){
+            //bug here socket should be deleted instantly since the sockets dies instantly we only hold the session id on the client map 
             clients.delete(socket);
             roomData?.clientsMap.delete(sessionId);
             const roomClients = roomData?.clientsMap;

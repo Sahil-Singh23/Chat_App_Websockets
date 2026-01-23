@@ -27,7 +27,14 @@ const Room = () => {
   // const [roomCode, setRoomCode] = useState('');
   const nicknameRef = useRef('');
   const roomCodeRef = useRef('');
-  const [sessionId] = useState(() => uuidv4());
+  const [sessionId] = useState(() => {
+  const stored = localStorage.getItem('chatSession');
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    return parsed.sessionId;
+  }
+  return uuidv4();
+});
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -67,7 +74,8 @@ const Room = () => {
       nicknameRef.current = data.nickname;
       setIsReady(true);
    
-        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://192.168.29.62:8000');
+        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://192.162.1.21:8000');
+       
         ws.current.onopen = ()=>{ 
             if(!ws.current) return;
             if (ws.current.readyState !== WebSocket.OPEN) return;
@@ -96,6 +104,7 @@ const Room = () => {
             }
             
         }
+        
         ws.current.onmessage = (e)=>{
             const data = JSON.parse(e.data);
             if(!data) return;
@@ -149,8 +158,8 @@ const Room = () => {
                         msg: m.msg,
                         hours: date.getHours(),
                         minutes: date.getMinutes(),
-                        isSelf: m.user === nicknameRef.current,
-                        //isSelf: m.sessionId === sessionId
+                        //isSelf: m.user === nicknameRef.current,
+                        isSelf: m.sessionId === sessionId
                     };
                 });
                 
@@ -173,8 +182,8 @@ const Room = () => {
                 const date = new Date(time);
                 const hours = date.getHours();
                 const minutes = date.getMinutes();
-               // const isSelf = msgSessionId === sessionId;
-                const isSelf = user === nicknameRef.current
+                const isSelf = msgSessionId === sessionId;
+                //const isSelf = user === nicknameRef.current
                 const msgObj = {user,msg,hours,minutes,isSelf};
                 setMsgs((m)=>[...m,msgObj])
                 const session = getSession();
@@ -191,8 +200,8 @@ const Room = () => {
                       msg: m.msg,
                       hours: date.getHours(),
                       minutes: date.getMinutes(),
-                      //isSelf: m.sessionId === sessionId
-                      isSelf: m.user === nicknameRef.current
+                      isSelf: m.sessionId === sessionId
+                      //isSelf: m.user === nicknameRef.current
                   };
               });
               
