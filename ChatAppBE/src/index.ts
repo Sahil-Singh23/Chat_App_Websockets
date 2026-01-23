@@ -209,10 +209,10 @@ wss.on("connection",(socket)=>{
             }
             const oldSocket = userData.socket;
             oldSocket.close();
-            const msgsToSend =
-                roomData.messageHistory.filter(
-                    msg => msg.time > userData.lastSeen 
-                );
+            const msgsToSend =roomData.messageHistory
+                // roomData.messageHistory.filter(
+                //     msg => msg.time > lastMessageTime 
+                // );
             
             roomData?.clientsMap.set(sessionId,{
                 socket,

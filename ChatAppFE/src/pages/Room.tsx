@@ -22,9 +22,11 @@ const Room = () => {
   const msgRef = useRef<HTMLInputElement | null>(null);
   const ws = useRef<WebSocket|null>(null);
   const msgsEndRef = useRef<HTMLDivElement>(null);
-  const [isValid, setIsValid] = useState(false);
-  const [nickname, setNickname] = useState('');
-  const [roomCode, setRoomCode] = useState('');
+  const [isReady, setIsReady] = useState(false);
+  // const [nickname, setNickname] = useState('');
+  // const [roomCode, setRoomCode] = useState('');
+  const nicknameRef = useRef('');
+  const roomCodeRef = useRef('');
   const [sessionId] = useState(() => uuidv4());
 
   const [showAlert, setShowAlert] = useState(false);
@@ -34,8 +36,8 @@ const Room = () => {
 
   function saveSession() {
     const session: StoredSession = {
-      roomCode: roomCode,
-      nickname: nickname,
+      roomCode: roomCodeRef.current,
+      nickname: nicknameRef.current,
       sessionId: sessionId,
       lastMessageTime: Date.now(),
       timestamp: Date.now()
@@ -49,7 +51,9 @@ const Room = () => {
     return JSON.parse(session);
   }
   
-
+  useEffect(()=>{
+    msgsEndRef.current?.scrollIntoView({behavior:"smooth"})
+  },[msgs])
   useEffect(()=>{
     
     try{
@@ -59,17 +63,17 @@ const Room = () => {
         return;
       }
       const data = JSON.parse(mountData);
-      setNickname(data.nickname);
-      setRoomCode(data.roomCode);
-      setIsValid(true);
+      roomCodeRef.current = data.roomCode;
+      nicknameRef.current = data.nickname;
+      setIsReady(true);
    
-        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://10.46.232.134:8000');
+        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://192.168.29.62:8000');
         ws.current.onopen = ()=>{ 
-            console.log("connected")
             if(!ws.current) return;
             if (ws.current.readyState !== WebSocket.OPEN) return;
             const stored: StoredSession|null = getSession();
-            if(stored && stored.roomCode == roomCode){
+            if(stored && stored.roomCode == data.roomCode){
+              console.log("hitting here")
               ws.current.send(JSON.stringify({
                 type:"reconnect",
                 payload:{
@@ -84,12 +88,11 @@ const Room = () => {
               ws.current.send(JSON.stringify({
                 type:"join",
                 payload:{
-                    roomCode:roomCode,
-                    username:nickname,
+                    roomCode:data.roomCode,
+                    username:data.nickname,
                     sessionId: sessionId
                 }
               }))
-              saveSession();
             }
             
         }
@@ -118,6 +121,16 @@ const Room = () => {
                     }
                     
                     return;
+                }else if(message.includes('Room closed')){
+                  setShowAlert(true);
+                  setAlertMessage(message);
+                  setAlertType('error');
+                  setTimeout(()=>{
+                      window.location.href = '/'; 
+                      return;
+                  },800)
+                  
+                  
                 }else{
                   setShowAlert(true);
                   setAlertMessage(message);
@@ -129,7 +142,19 @@ const Room = () => {
                 setShowAlert(true);
                 setAlertMessage("joined the room");
                 setAlertType('success');
-                setMsgs((m)=>[...m,...pastMsgs]);
+                const transformedMsgs = (pastMsgs || []).map((m: any) => {
+                    const date = new Date(m.time);
+                    return {
+                        user: m.user,
+                        msg: m.msg,
+                        hours: date.getHours(),
+                        minutes: date.getMinutes(),
+                        isSelf: m.user === nicknameRef.current,
+                        //isSelf: m.sessionId === sessionId
+                    };
+                });
+                
+                setMsgs((prev) => [...prev, ...transformedMsgs]);
                 saveSession();
             }else if(data.type == "user-joined"){
                 const {user,userCount} = data.payload;
@@ -148,7 +173,8 @@ const Room = () => {
                 const date = new Date(time);
                 const hours = date.getHours();
                 const minutes = date.getMinutes();
-                const isSelf = msgSessionId === sessionId;
+               // const isSelf = msgSessionId === sessionId;
+                const isSelf = user === nicknameRef.current
                 const msgObj = {user,msg,hours,minutes,isSelf};
                 setMsgs((m)=>[...m,msgObj])
                 const session = getSession();
@@ -157,8 +183,20 @@ const Room = () => {
                   localStorage.setItem('chatSession',JSON.stringify (session))
                 }
             }else if(data.type == 'reconnected'){
-              const {msgs,userCount} = data.payload;
-              setMsgs((m)=>[...m,...msgs]);
+              const { msgsToSend, userCount} = data.payload;
+              const transformedMsgs = (msgsToSend || []).map((m: any) => {
+                  const date = new Date(m.time);
+                  return {
+                      user: m.user,
+                      msg: m.msg,
+                      hours: date.getHours(),
+                      minutes: date.getMinutes(),
+                      //isSelf: m.sessionId === sessionId
+                      isSelf: m.user === nicknameRef.current
+                  };
+              });
+              
+              setMsgs((m) => [...m, ...transformedMsgs]);
               setUserCount(userCount);
               saveSession();
 
@@ -172,7 +210,7 @@ const Room = () => {
         console.log("user disconnected")
       }
   },[])
-    if (!isValid) return null;
+  if (!isReady) return null;
 
   function sendMessage(){
     if(!ws.current) return;
@@ -190,9 +228,7 @@ const Room = () => {
     msgRef.current.value ="";
   }
 
-  useEffect(()=>{
-    msgsEndRef.current?.scrollIntoView({behavior:"smooth"})
-  },[msgs])
+  
 
   return (
     <section className="min-h-screen bg-[#080605]">
@@ -218,7 +254,7 @@ const Room = () => {
             </span>
             <div className="flex justify-between bg-neutral-800 py-4 px-5 mb-3.25 rounded-2xl border-0 w-full">
               <span className="text-white/80 text-sm">
-                {`Room Code: ${roomCode}`}
+                {`Room Code: ${roomCodeRef.current}`}
               </span>
               <span className="text-white/80 text-sm">
                 {`Users ${userCount}`}

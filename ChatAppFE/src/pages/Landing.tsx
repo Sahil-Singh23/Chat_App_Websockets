@@ -16,23 +16,19 @@ const Landing = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
   const navigate = useNavigate();
-  const fallBackUrl = 'http://10.46.232.134:8000';
+  const fallBackUrl = 'http://192.168.29.62:8000';
 
   async function CreateRoom(){
-    const nickname = nameRef.current?.value;
-    if(!nickname) {
-      setAlertMessage("Please enter a nickname");
-      setAlertType('error');
-      setShowAlert(true);
-      return;
-    }
     setIsLoading(true);
     try{
       const response = await axios.post(`${import.meta.env.VITE_API_URL || fallBackUrl}/api/v1/create`)
-      const roomCode = response.data.roomCode;
-      // Store the session and navigate to the room
-      localStorage.setItem('newChatSession', JSON.stringify({ roomCode, nickname }));
-      navigate(`/room/${roomCode}`);
+      if(roomRef.current) {
+        roomRef.current.value = response.data.roomCode;
+        //await navigator.clipboard.writeText(response.data.roomCode);
+        setAlertMessage("Room created!");
+        setAlertType('success');
+        setShowAlert(true);
+      }
     }catch (error) {
       console.error('Error creating room:', error)
       setAlertMessage("Failed to create room. Please try again.");
@@ -100,10 +96,10 @@ const Landing = () => {
             <span className="text-white text-xs md:text-sm mb-5 font-sfmono opacity-70">
 							{"temporary chats that disappears after all users exit"}
 						</span>
+            <Button onClick={CreateRoom} width="w-full" text={isLoading ? "Creating..." : "Create new room"} disabled={isLoading||isJoining}></Button>
             <div className="mt-4 w-full">
               <Input width="w-full" ref={nameRef} placeholder="Enter nickname"></Input>
             </div>
-            <Button onClick={CreateRoom} width="w-full" text={isLoading ? "Creating..." : "Create new room"} disabled={isLoading||isJoining}></Button>
             <div className="flex flex-col sm:flex-row mt-4 w-full gap-4 md:gap-2">
               <Input width="w-full sm:w-4/6" ref={roomRef} placeholder="Enter room code"></Input>
               <Button width="w-full sm:w-2/6" disabled={isLoading||isJoining} onClick={JoinRoom} text={isJoining ? "Joining..." : "Join"} ></Button>
