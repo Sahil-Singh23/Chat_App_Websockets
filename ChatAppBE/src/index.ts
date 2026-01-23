@@ -29,6 +29,7 @@ interface RoomData{
 interface ClientInfo{
     socket: WebSocket,
     user: string,
+    //not really being used as of now, might need in future for last seen feature
     lastSeen: number,
    // lastMessageTime: number,
     disconnectTimeout?: NodeJS.Timeout 
@@ -217,21 +218,18 @@ wss.on("connection",(socket)=>{
     socket.on("close",()=>{
         const client = clients.get(socket);
         if(!client) return;
-        
         const {user, roomCode, sessionId} = client;
-        // Mark lastSeen timestamp
-        // Set 30-second timeout
-        // If no reconnect in 30s → then broadcast "user-left"
         const roomData = rooms.get(roomCode);
         if(!roomData) return;
-        const clientData = roomData.clientsMap.get(sessionId);
+        const clientsMap = roomData.clientsMap;
+        const clientData = clientsMap.get(sessionId);
         if(!clientData) return;
         clientData.lastSeen = Date.now();
+        //immedialty remove the socket from the clients map as it is dead
+        clients.delete(socket);
 
         function deleteUser(){
-            //bug here socket should be deleted instantly since the sockets dies instantly we only hold the session id on the client map 
-            clients.delete(socket);
-            roomData?.clientsMap.delete(sessionId);
+            clientsMap.delete(sessionId);
             const roomClients = roomData?.clientsMap;
             if(roomClients && roomClients.size>0){
                 for(const cur of roomClients){
@@ -247,7 +245,6 @@ wss.on("connection",(socket)=>{
                 rooms.delete(roomCode);
             }
         }
-
         const timer = setTimeout(deleteUser,60*1000);
         clientData.disconnectTimeout = timer;
     })
