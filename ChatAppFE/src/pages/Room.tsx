@@ -4,7 +4,6 @@ import Glow from "../components/Glow"
 import Input from "../components/Input"
 import Button from "../components/Button"
 import { useEffect, useRef, useState } from "react"
-// import { useNavigate } from "react-router-dom"
 import SendIcon from "../icons/SendIcon"
 import Message from "../components/Message"
 import { v4 as uuidv4 } from 'uuid'
@@ -13,7 +12,6 @@ interface StoredSession{
   roomCode: string ,
   sessionId: string,
   nickname: string,
-  lastMessageTime: number,
   timestamp : number
 }
 
@@ -23,19 +21,16 @@ const Room = () => {
   const ws = useRef<WebSocket|null>(null);
   const msgsEndRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
-  // const [nickname, setNickname] = useState('');
-  // const [roomCode, setRoomCode] = useState('');
   const nicknameRef = useRef('');
   const roomCodeRef = useRef('');
   const [sessionId] = useState(() => {
-  const stored = localStorage.getItem('chatSession');
-  if (stored) {
-    const parsed = JSON.parse(stored);
-    return parsed.sessionId;
-  }
-  return uuidv4();
-});
-
+    const stored = localStorage.getItem('chatSession');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.sessionId;
+      }
+      return uuidv4();
+  });
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
@@ -46,23 +41,33 @@ const Room = () => {
       roomCode: roomCodeRef.current,
       nickname: nicknameRef.current,
       sessionId: sessionId,
-      lastMessageTime: Date.now(),
       timestamp: Date.now()
     }
     localStorage.setItem('chatSession',JSON.stringify(session))
   }
-
   function getSession(){
     const session: string|null = localStorage.getItem('chatSession')
     if(!session) return;
     return JSON.parse(session);
+  }
+  function lastMessageTime() {
+    const stored = localStorage.getItem('roomMessages');
+    if (!stored) return 0;
+    
+    const msgs = JSON.parse(stored);
+    return msgs.length > 0 ? msgs[msgs.length - 1].time : 0;
+  };
+  function getLocalMsgs(){
+    const stored = localStorage.getItem('roomMessages');
+    if (!stored) return [];
+    const msgs = JSON.parse(stored);
+    return msgs;
   }
   
   useEffect(()=>{
     msgsEndRef.current?.scrollIntoView({behavior:"smooth"})
   },[msgs])
   useEffect(()=>{
-    
     try{
       const mountData = localStorage.getItem('newChatSession');
       if (!mountData) {
@@ -79,29 +84,20 @@ const Room = () => {
         ws.current.onopen = ()=>{ 
             if(!ws.current) return;
             if (ws.current.readyState !== WebSocket.OPEN) return;
-            const stored: StoredSession|null = getSession();
-            if(stored && stored.roomCode == data.roomCode){
-              console.log("hitting here")
-              ws.current.send(JSON.stringify({
-                type:"reconnect",
-                payload:{
-                    roomCode:stored.roomCode,
-                    sessionId: stored.sessionId,
-                    lastMessageTime: stored.lastMessageTime
-                }
-              }))
-
+            // In joined handler delete msgs if it belongs to old room
+            if (data.roomCode !== roomCodeRef.current) {
+                localStorage.removeItem('roomMessages');
             }
-            else{
-              ws.current.send(JSON.stringify({
-                type:"join",
-                payload:{
-                    roomCode:data.roomCode,
-                    username:data.nickname,
-                    sessionId: sessionId
-                }
-              }))
-            }
+            ws.current.send(JSON.stringify({
+              type: "join",
+              payload: {
+                //check wts better to send here from local storage or from here smwereelse 
+                roomCode: data.roomCode,
+                username: data.nickname,
+                sessionId: sessionId,
+                lastMessageTime: lastMessageTime()
+              }
+            }))
             
         }
         
@@ -110,27 +106,7 @@ const Room = () => {
             if(!data) return;
             if(data.type == "error"){
                 const {message} = data.payload;
-                if(message.includes('expired')){
-                    const stored:StoredSession|null = getSession();
-                    if(stored && ws.current){ 
-                      ws.current.send(JSON.stringify({
-                        type:"join",
-                        payload:{
-                            roomCode:stored.roomCode,
-                            username:stored.nickname,
-                            sessionId: sessionId
-                        }}))
-                        setShowAlert(true);
-                        setAlertMessage("Reconnected to room");
-                        setAlertType('info');
-                    }else{
-                      localStorage.removeItem('chatSession');
-                      window.location.href = '/'; 
-                      return;
-                    }
-                    
-                    return;
-                }else if(message.includes('Room closed')){
+                if(message.includes('Room closed')){
                   setShowAlert(true);
                   setAlertMessage(message);
                   setAlertType('error');
@@ -138,77 +114,71 @@ const Room = () => {
                       window.location.href = '/'; 
                       return;
                   },800)
-                  
-                  
                 }else{
                   setShowAlert(true);
                   setAlertMessage(message);
                   setAlertType('error');
                 }
-            }else if(data.type == "joined"){
-                const {userCount,pastMsgs} = data.payload;
+            }
+            else if(data.type == "joined"){
+                const {userCount,msgs} = data.payload;
                 setUserCount(userCount);
                 setShowAlert(true);
                 setAlertMessage("joined the room");
                 setAlertType('success');
-                const transformedMsgs = (pastMsgs || []).map((m: any) => {
+                //write logic for storedMsgs
+                const oldMsgs = getLocalMsgs();
+                const allMsgs = [...oldMsgs, ...msgs]
+                localStorage.setItem('roomMessages',JSON.stringify(allMsgs))
+
+                const transformedMsgs = (allMsgs || []).map((m: any) => {
                     const date = new Date(m.time);
                     return {
                         user: m.user,
                         msg: m.msg,
                         hours: date.getHours(),
                         minutes: date.getMinutes(),
-                        //isSelf: m.user === nicknameRef.current,
                         isSelf: m.sessionId === sessionId
                     };
                 });
-                
                 setMsgs((prev) => [...prev, ...transformedMsgs]);
                 saveSession();
-            }else if(data.type == "user-joined"){
+            }
+            else if(data.type == "user-joined"){
                 const {user,userCount} = data.payload;
                 setUserCount(userCount);
                 setShowAlert(true);
                 setAlertMessage(user+" joined the room");
                 setAlertType('info');
-            }else if(data.type == 'user-left'){
+            }
+            else if(data.type == 'user-left'){
                 const {user,userCount} = data.payload;
                 setUserCount(userCount);
                 setShowAlert(true);
                 setAlertMessage(user+" left the room");
                 setAlertType('info');
-            }else if(data.type == 'message'){
+            }
+            else if(data.type == 'message'){
                 const {time,msg,user,sessionId:msgSessionId} = data.payload;
+
+                //store the message recieved on local storage as well
+                const backendMsg = {
+                    msg,
+                    user,
+                    time,
+                    sessionId: msgSessionId
+                };
+                const currentMsgs = getLocalMsgs();
+                localStorage.setItem('roomMessages', JSON.stringify([...currentMsgs, backendMsg]));
+
+                //render for ui format 
                 const date = new Date(time);
                 const hours = date.getHours();
                 const minutes = date.getMinutes();
                 const isSelf = msgSessionId === sessionId;
-                //const isSelf = user === nicknameRef.current
                 const msgObj = {user,msg,hours,minutes,isSelf};
                 setMsgs((m)=>[...m,msgObj])
-                const session = getSession();
-                if(session){
-                  session.lastMessageTime = time;
-                  localStorage.setItem('chatSession',JSON.stringify (session))
-                }
-            }else if(data.type == 'reconnected'){
-              const { msgsToSend, userCount} = data.payload;
-              const transformedMsgs = (msgsToSend || []).map((m: any) => {
-                  const date = new Date(m.time);
-                  return {
-                      user: m.user,
-                      msg: m.msg,
-                      hours: date.getHours(),
-                      minutes: date.getMinutes(),
-                      isSelf: m.sessionId === sessionId
-                      //isSelf: m.user === nicknameRef.current
-                  };
-              });
-              
-              setMsgs((m) => [...m, ...transformedMsgs]);
-              setUserCount(userCount);
-              saveSession();
-
+                
             }
         }
     }catch(e){
@@ -216,9 +186,9 @@ const Room = () => {
     }
     return()=>{
         ws.current?.close();
-        console.log("user disconnected")
       }
   },[])
+
   if (!isReady) return null;
 
   function sendMessage(){
@@ -236,8 +206,6 @@ const Room = () => {
     }))
     msgRef.current.value ="";
   }
-
-  
 
   return (
     <section className="min-h-screen bg-[#080605]">
