@@ -120,7 +120,8 @@ wss.on("connection",(socket)=>{
                 }else{
                     //new joining , since session id does nt exists , so ill broadcast to everyone 
                     const allSockets = roomData.clientsMap;
-                    const userCount = allSockets.size;
+                    const userCount = allSockets.size+1;
+                    //maps are getting updated later so temp fix to add 1 
                     for(const cur of allSockets){
                         if(cur[0]!=sessionId){
                             cur[1].socket.send(JSON.stringify({
@@ -139,6 +140,7 @@ wss.on("connection",(socket)=>{
                 });
                 clients.set(socket,{user:username,roomCode,sessionId});
                 //send msgs now based on the last message time 
+
                 const {messageHistory} = roomData;
                 const msgs = messageHistory.filter((m)=> m.time>lastMessageTime);
                 socket.send(JSON.stringify({
