@@ -75,6 +75,10 @@ const Room = () => {
         return;
       }
       const data = JSON.parse(mountData);
+      const stored = getSession();
+      if (stored && stored.roomCode !== data.roomCode) {
+          localStorage.removeItem('roomMessages');
+      }
       roomCodeRef.current = data.roomCode;
       nicknameRef.current = data.nickname;
       setIsReady(true);
@@ -110,6 +114,7 @@ const Room = () => {
                   setShowAlert(true);
                   setAlertMessage(message);
                   setAlertType('error');
+                  localStorage.removeItem('roomMessages');
                   setTimeout(()=>{
                       window.location.href = '/'; 
                       return;
