@@ -67,6 +67,13 @@ const Room = () => {
     const msgs = JSON.parse(stored);
     return msgs;
   }
+
+  function trimMessagesToLast100(messages: any[]) {
+    if (messages.length > 100) {
+      return messages.slice(-100);
+    }
+    return messages;
+  }
   
   useEffect(()=>{
     msgsEndRef.current?.scrollIntoView({behavior:"smooth"})
@@ -155,9 +162,10 @@ const Room = () => {
                 //write logic for storedMsgs
                 const oldMsgs = getLocalMsgs();
                 const allMsgs = [...oldMsgs, ...msgs]
-                localStorage.setItem('roomMessages',JSON.stringify(allMsgs))
+                const trimmedMsgs = trimMessagesToLast100(allMsgs);
+                localStorage.setItem('roomMessages',JSON.stringify(trimmedMsgs))
 
-                const transformedMsgs = (allMsgs || []).map((m: any) => {
+                const transformedMsgs = (trimmedMsgs || []).map((m: any) => {
                     const date = new Date(m.time);
                     return {
                         user: m.user,
@@ -195,7 +203,9 @@ const Room = () => {
                     sessionId: msgSessionId
                 };
                 const currentMsgs = getLocalMsgs();
-                localStorage.setItem('roomMessages', JSON.stringify([...currentMsgs, backendMsg]));
+                const updatedMsgs = [...currentMsgs, backendMsg];
+                const trimmedMsgs = trimMessagesToLast100(updatedMsgs);
+                localStorage.setItem('roomMessages', JSON.stringify(trimmedMsgs));
 
                 //render for ui format 
                 const date = new Date(time);
