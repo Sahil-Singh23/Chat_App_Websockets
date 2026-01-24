@@ -129,7 +129,7 @@ const Room = () => {
                 const {userCount,msgs} = data.payload;
                 setUserCount(userCount);
                 setShowAlert(true);
-                setAlertMessage("joined the room");
+                setAlertMessage("Joined the room");
                 setAlertType('success');
                 //write logic for storedMsgs
                 const oldMsgs = getLocalMsgs();
@@ -212,6 +212,14 @@ const Room = () => {
     msgRef.current.value ="";
   }
 
+  function leaveRoom() {
+    ws.current?.close();
+    localStorage.removeItem('roomMessages');
+    localStorage.removeItem('chatSession');
+    localStorage.removeItem('newChatSession');
+    window.location.href = '/';
+  }
+
   return (
     <section className="min-h-screen bg-[#080605]">
       {showAlert && (
@@ -227,20 +235,40 @@ const Room = () => {
           <div className="flex flex-col items-start p-6 md:p-8 rounded-2xl border border-solid border-neutral-700">
             <div className="flex items-center mb-3 gap-3">
               <ChatIcon></ChatIcon>
-              <span className="text-[#FFF6E0] text-xl md:text-2xl font-ntbricksans">
+              <span className="text-[#FFF6E0] text-l md:text-2xl font-ntbricksans">
                 {"Anonymous Rooms"}
               </span>
             </div>
             <span className="text-white text-xs md:text-sm mb-5 font-sfmono opacity-70">
               {"temporary chats that disappears after all users exit"}
             </span>
-            <div className="flex justify-between bg-neutral-800 py-4 px-5 mb-3.25 rounded-2xl border-0 w-full">
+            <div className="flex justify-between items-center bg-neutral-800 py-2 px-5 mb-3.25 rounded-2xl border-0 w-full h-12">
               <span className="text-white/80 text-sm">
                 {`Room Code: ${roomCodeRef.current}`}
               </span>
-              <span className="text-white/80 text-sm">
-                {`Users ${userCount}`}
+              <span className="flex gap-4 items-center text-white/80 text-sm">
+                <span className="text-white/80 text-sm">
+                  {`Users ${userCount}`}
+                </span>
+                
+                <button
+                onClick={leaveRoom}
+                className="hidden md:block px-4 py-1 text-s text-neutral-300 border border-neutral-600 rounded-[10px] hover:bg-neutral-900 transition-colors whitespace-nowrap"
+              >
+                Leave Room
+              </button>
               </span>
+              
+              
+            </div>
+            
+            <div className="flex md:hidden gap-2 w-full mb-1">
+              <Button 
+                width="w-full" 
+                onClick={leaveRoom} 
+                text="Leave Room" 
+                variant="ghost"
+              />
             </div>
             <div 
               className="flex flex-col w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700 overflow-y-auto gap-3"
