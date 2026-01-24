@@ -35,6 +35,10 @@ const Room = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
   const [userCount,setUserCount] = useState<number>(0);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const usernameInputRef = useRef<HTMLInputElement | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const shareLinkRef = useRef<HTMLInputElement | null>(null);
 
   function saveSession() {
     const session: StoredSession = {
@@ -69,11 +73,28 @@ const Room = () => {
   },[msgs])
   useEffect(()=>{
     try{
+      const params = new URLSearchParams(window.location.search);
+      const roomCodeParam = params.get('roomCode');
+      
       const mountData = localStorage.getItem('newChatSession');
-      if (!mountData) {
-        window.location.href = '/'; // Redirect instead of returning null
+      
+      // If URL has roomCode but no session data, show username modal
+      if (roomCodeParam && !mountData) {
+        setShowUsernameModal(true);
         return;
       }
+      
+      // No roomCode param and no session - redirect home
+      if (!roomCodeParam && !mountData) {
+        window.location.href = '/';
+        return;
+      }
+      
+      // Has session data, continue with room setup
+      if (!mountData) {
+        return;
+      }
+      
       const data = JSON.parse(mountData);
       const stored = getSession();
       if (stored && stored.roomCode !== data.roomCode) {
@@ -194,7 +215,37 @@ const Room = () => {
       }
   },[])
 
-  if (!isReady) return null;
+  if (!isReady) {
+    if (showUsernameModal) {
+      return (
+        <section className="min-h-screen bg-[#080605] flex items-center justify-center px-3">
+          <Glow></Glow>
+          <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-8 max-w-sm w-full">
+            <h2 className="text-white text-2xl font-ntbricksans mb-4">Join Room</h2>
+            <p className="text-white/70 text-sm mb-6">Enter your username to join the chat</p>
+            <input
+              ref={usernameInputRef}
+              type="text"
+              placeholder="Enter username"
+              className="w-full bg-neutral-800 border border-neutral-600 rounded-lg px-4 py-2 text-white placeholder-neutral-500 mb-6 focus:outline-none focus:border-neutral-500"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleJoinWithUsername();
+                }
+              }}
+            />
+            <button
+              onClick={handleJoinWithUsername}
+              className="w-full bg-[#FFFAED] text-black font-semibold py-2 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              Join Room
+            </button>
+          </div>
+        </section>
+      );
+    }
+    return null;
+  }
 
   function sendMessage(){
     if(!ws.current) return;
@@ -220,6 +271,47 @@ const Room = () => {
     window.location.href = '/';
   }
 
+  function copyLink() {
+    const url = `${window.location.origin}?roomCode=${roomCodeRef.current}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'Anonymous Rooms',
+        url: url
+      }).catch((err) => {
+        console.log('Share failed, showing modal:', err);
+        setShowShareModal(true);
+      });
+    } else {
+      // No share API, show modal
+      setShowShareModal(true);
+    }
+  }
+
+  function handleJoinWithUsername() {
+    if (!usernameInputRef.current?.value.trim()) {
+      setShowAlert(true);
+      setAlertMessage('Please enter a username');
+      setAlertType('error');
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const roomCode = params.get('roomCode');
+    
+    if (roomCode) {
+      const newSession: StoredSession = {
+        roomCode: roomCode,
+        nickname: usernameInputRef.current.value,
+        sessionId: sessionId,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('newChatSession', JSON.stringify(newSession));
+      setShowUsernameModal(false);
+      window.location.reload();
+    }
+  }
+
   return (
     <section className="min-h-screen bg-[#080605]">
       {showAlert && (
@@ -229,17 +321,63 @@ const Room = () => {
           onClose={() => setShowAlert(false)}
         />
       )}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-3 z-50">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-6 max-w-sm w-full">
+            <h2 className="text-white text-xl font-ntbricksans mb-4">Share Room Link</h2>
+            <p className="text-white/70 text-sm mb-4">Copy this link and share it with others:</p>
+            <div className="bg-neutral-800 border border-neutral-600 rounded-lg p-3 mb-4 flex items-center gap-2">
+              <input
+                ref={shareLinkRef}
+                type="text"
+                readOnly
+                value={`${window.location.origin}?roomCode=${roomCodeRef.current}`}
+                className="flex-1 bg-transparent text-white text-xs outline-none select-all"
+              />
+              <button
+                onClick={() => {
+                  if (shareLinkRef.current) {
+                    shareLinkRef.current.select();
+                    document.execCommand('copy');
+                    setShowAlert(true);
+                    setAlertMessage('Link copied!');
+                    setAlertType('success');
+                    setShowShareModal(false);
+                  }
+                }}
+                className="px-3 py-1 bg-[#FFFAED] text-black text-xs font-semibold rounded hover:opacity-90 transition-opacity whitespace-nowrap"
+              >
+                Copy
+              </button>
+            </div>
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="w-full px-4 py-2 text-white border border-neutral-600 rounded-lg hover:bg-neutral-800 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       <Glow></Glow>
       <div className="flex flex-col items-center justify-center min-h-screen px-3 sm:px-6 lg:px-8">
         <div className="w-full max-w-full md:max-w-1/2">
           <div className="flex flex-col items-start p-6 md:p-8 rounded-2xl border border-solid border-neutral-700">
-            <div className="flex items-center mb-3 gap-3">
-              <ChatIcon></ChatIcon>
-              <span className="text-[#FFF6E0] text-l md:text-2xl font-ntbricksans">
-                {"Anonymous Rooms"}
-              </span>
+            <div className="flex items-center mb-3 gap-3 justify-between w-full">
+              <div className="flex items-center gap-3">
+                <ChatIcon></ChatIcon>
+                <span className="text-[#FFF6E0] text-sm tracking-tight md:text-2xl font-ntbricksans">
+                  {"Anonymous Rooms"}
+                </span>
+              </div>
+              <button
+                onClick={copyLink}
+                className="text-white/70 hover:text-white text-xs flex items-center gap-1 transition-colors"
+              >
+                Share Link ↗
+              </button>
             </div>
-            <span className="text-white text-xs md:text-sm mb-5 font-sfmono opacity-70">
+            <span className="text-white text-[10px] md:text-sm mb-5 font-sfmono opacity-70">
               {"temporary chats that disappears after all users exit"}
             </span>
             <div className="flex justify-between items-center bg-neutral-800 py-2 px-5 mb-3.25 rounded-2xl border-0 w-full h-12">
