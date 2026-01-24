@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { Github } from 'lucide-react'
 import Button from "../components/Button"
 import Input from "../components/Input"
 import ChatIcon from "../icons/ChatIcon"
@@ -84,14 +85,28 @@ const Landing = () => {
         />
       )}
       <Glow></Glow>
+      <section className="fixed top-6 right-6 md:right-25 z-50">
+        <a
+          href="https://github.com/Sahil-Singh23/Chat_App_Websockets"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 border border-neutral-600 px-3 py-1 rounded-lg text-neutral-400 text-sm hover:text-neutral-300 hover:border-neutral-500 transition-all duration-200 whitespace-nowrap"
+        >
+          <Github size={16} />
+          Star us on GitHub
+        </a>
+      </section>
       <div className="flex flex-col items-center justify-center min-h-screen px-3 sm:px-6 lg:px-8">
         <div className="w-full max-w-full md:max-w-1/2">
           <div className="flex flex-col items-start p-6 md:p-8 rounded-2xl border border-solid border-neutral-700">
-            <div className="flex items-center mb-3 gap-3">
-              <ChatIcon></ChatIcon>
-              <span className="text-[#FFF6E0] text-xl md:text-2xl font-ntbricksans">
-								{"Anonymous Rooms"}
-							</span>
+            <div className="flex items-center mb-3 gap-3 justify-between w-full">
+              <div className="flex items-center gap-3">
+                <ChatIcon></ChatIcon>
+                <span className="text-[#FFF6E0] text-xl md:text-2xl font-ntbricksans">
+                  {"Anonymous Rooms"}
+                </span>
+              </div>
+              
             </div>
             <span className="text-white text-xs md:text-sm mb-5 font-sfmono opacity-70">
 							{"temporary chats that disappears after all users exit"}
