@@ -46,10 +46,7 @@ const Room = () => {
   const lastTypingSent = useRef(0);
   const [typingUsers,setTypingUsers] = useState<Map<string,{user:string,timestamp: number}>>(new Map());
   const [removingTypingUsers,setRemovingTypingUsers] = useState<Set<string>>(new Set());
-  const typingTimeouts = useRef<Map<string,ReturnType<typeof setTimeout>>>(new Map());  const [isConnected, setIsConnected] = useState(false);
-  const reconnectAttempts = useRef(0);
-  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const maxReconnectDelay = 30000; // 30 seconds max
+  const typingTimeouts = useRef<Map<string,ReturnType<typeof setTimeout>>>(new Map());
   function saveSession() {
     const session: StoredSession = {
       roomCode: roomCodeRef.current,
