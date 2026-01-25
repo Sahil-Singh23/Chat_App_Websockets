@@ -14,6 +14,31 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 const wss = new WebSocketServer({server});
 
+// Periodic cleanup: Delete empty rooms after 5-10 minutes
+const EMPTY_ROOM_TIMEOUT = 10 * 60 * 1000; // 5 minutes
+const CLEANUP_INTERVAL = 2 * 60 * 1000; // Run cleanup every 1 minute
+
+setInterval(() => {
+  const now = Date.now();
+  const roomsToDelete: string[] = [];
+  
+  for (const [roomCode, roomData] of rooms.entries()) {
+    // If room is empty and has been empty for more than 5 minutes, delete it
+    if (roomData.clientsMap.size === 0 && roomData.emptyingSince) {
+      const emptyDuration = now - roomData.emptyingSince;
+      if (emptyDuration > EMPTY_ROOM_TIMEOUT) {
+        roomsToDelete.push(roomCode);
+      }
+    }
+  }
+  
+  // Delete rooms that have been empty too long
+  for (const roomCode of roomsToDelete) {
+    rooms.delete(roomCode);
+    console.log(`Deleted empty room: ${roomCode}`);
+  }
+}, CLEANUP_INTERVAL);
+
 interface Message{
     msg: string,
     user: string,
@@ -24,7 +49,8 @@ interface RoomData{
     messageHistory: Message[],
     createdAt: number,
     //session id -> their data 
-    clientsMap: Map<string,ClientInfo>
+    clientsMap: Map<string,ClientInfo>,
+    emptyingSince?: number  // Timestamp when room became empty
 }
 interface ClientInfo{
     socket: WebSocket,
@@ -138,6 +164,10 @@ wss.on("connection",(socket)=>{
                     user:username,
                     lastSeen: Date.now(),
                 });
+                // Clear empty timestamp when someone joins
+                if (clientsMap.size === 1) {
+                    roomData.emptyingSince = undefined;
+                }
                 clients.set(socket,{user:username,roomCode,sessionId});
                 //send msgs now based on the last message time 
 
@@ -241,8 +271,10 @@ wss.on("connection",(socket)=>{
                     }
                 }))
                 }
-            }if(roomClients?.size===0){
-                rooms.delete(roomCode);
+            }
+            // Mark room as empty instead of deleting immediately
+            if(roomClients?.size === 0){
+                roomData.emptyingSince = Date.now();
             }
         }
         const timer = setTimeout(deleteUser,60*1000);

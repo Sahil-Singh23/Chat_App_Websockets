@@ -37,16 +37,19 @@ const Room = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
+  const hasAutoShownRef = useRef(false);
   const [userCount,setUserCount] = useState<number>(0);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const usernameInputRef = useRef<HTMLInputElement | null>(null);
-  const [showShareModal, setShowShareModal] = useState(true);
+  const [showShareModal, setShowShareModal] = useState(false);
   const shareLinkRef = useRef<HTMLInputElement | null>(null);
   const lastTypingSent = useRef(0);
   const [typingUsers,setTypingUsers] = useState<Map<string,{user:string,timestamp: number}>>(new Map());
   const [removingTypingUsers,setRemovingTypingUsers] = useState<Set<string>>(new Set());
-  const typingTimeouts = useRef<Map<string,ReturnType<typeof setTimeout>>>(new Map());
-
+  const typingTimeouts = useRef<Map<string,ReturnType<typeof setTimeout>>>(new Map());  const [isConnected, setIsConnected] = useState(false);
+  const reconnectAttempts = useRef(0);
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxReconnectDelay = 30000; // 30 seconds max
   function saveSession() {
     const session: StoredSession = {
       roomCode: roomCodeRef.current,
@@ -97,6 +100,12 @@ const Room = () => {
       }
     }
   }
+  useEffect(() => {
+    if (userCount === 1 && !hasAutoShownRef.current) {
+      setShowShareModal(true);
+      hasAutoShownRef.current = true;
+    }
+  }, [userCount]);
   useEffect(()=>{
     msgsEndRef.current?.scrollIntoView({behavior:"smooth"})
   },[typingUsers,msgs])
@@ -106,7 +115,7 @@ const Room = () => {
       const queryRoomCode = params.get('roomCode');
       const roomCodeToUse = paramRoomCode || queryRoomCode;
       
-      const mountData = localStorage.getItem('newChatSession');
+      const mountData = sessionStorage.getItem('newChatSession');
       
       // If roomCode exists but no session data, show username modal
       if (roomCodeToUse && !mountData) {
@@ -126,6 +135,15 @@ const Room = () => {
       }
       
       const data = JSON.parse(mountData);
+      
+      // IMPORTANT: Check if roomCode matches - if different, clear old session and messages
+      if (roomCodeToUse && data.roomCode !== roomCodeToUse) {
+        sessionStorage.removeItem('newChatSession');
+        localStorage.removeItem('roomMessages');
+        setShowUsernameModal(true);
+        return;
+      }
+      
       const stored = getSession();
       if (stored && stored.roomCode !== data.roomCode) {
           localStorage.removeItem('roomMessages');
@@ -351,7 +369,7 @@ const Room = () => {
     ws.current?.close();
     localStorage.removeItem('roomMessages');
     localStorage.removeItem('chatSession');
-    localStorage.removeItem('newChatSession');
+    sessionStorage.removeItem('newChatSession');
     window.location.href = '/';
   }
 
@@ -389,7 +407,7 @@ const Room = () => {
         sessionId: sessionId,
         timestamp: Date.now()
       };
-      localStorage.setItem('newChatSession', JSON.stringify(newSession));
+      sessionStorage.setItem('newChatSession', JSON.stringify(newSession));
       setShowUsernameModal(false);
       window.location.reload();
     }

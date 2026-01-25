@@ -56,7 +56,7 @@ const Landing = () => {
     try{
       const response = await axios.post(`${import.meta.env.VITE_API_URL || fallBackUrl}/api/v1/room/${roomCode}`)
       if(response.data) {
-        localStorage.setItem('newChatSession', JSON.stringify({ roomCode, nickname }));
+        sessionStorage.setItem('newChatSession', JSON.stringify({ roomCode, nickname }));
         navigate(`/room/${roomCode}`);
       }
     }catch(e: any){
