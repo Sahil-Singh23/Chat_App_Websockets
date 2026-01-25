@@ -15,15 +15,15 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 const wss = new WebSocketServer({server});
 
 // Periodic cleanup: Delete empty rooms after 5-10 minutes
-const EMPTY_ROOM_TIMEOUT = 10 * 60 * 1000; // 5 minutes
-const CLEANUP_INTERVAL = 2 * 60 * 1000; // Run cleanup every 1 minute
+const EMPTY_ROOM_TIMEOUT = 10 * 60 * 1000; 
+const CLEANUP_INTERVAL = 2 * 60 * 1000; 
 
 setInterval(() => {
   const now = Date.now();
   const roomsToDelete: string[] = [];
   
   for (const [roomCode, roomData] of rooms.entries()) {
-    // If room is empty and has been empty for more than 5 minutes, delete it
+    // If room is empty and has been empty for more than 10 minutes, delete it
     if (roomData.clientsMap.size === 0 && roomData.emptyingSince) {
       const emptyDuration = now - roomData.emptyingSince;
       if (emptyDuration > EMPTY_ROOM_TIMEOUT) {
@@ -31,8 +31,6 @@ setInterval(() => {
       }
     }
   }
-  
-  // Delete rooms that have been empty too long
   for (const roomCode of roomsToDelete) {
     rooms.delete(roomCode);
     console.log(`Deleted empty room: ${roomCode}`);
