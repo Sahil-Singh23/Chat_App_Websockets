@@ -103,6 +103,40 @@ const Room = () => {
       hasAutoShownRef.current = true;
     }
   }, [userCount]);
+
+  useEffect(() => {
+    // Handle mobile app backgrounding - auto-refresh on resume
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isReady) {
+        // Check if on mobile device
+        const isMobile = /iPhone|iPad|Android|Mobile/.test(navigator.userAgent);
+        if (isMobile) {
+          console.log('Mobile app resumed, refreshing to reconnect...');
+          window.location.reload();
+        }
+      }
+    };
+
+    // Fallback for app switching on some mobile browsers
+    const handlePageShow = () => {
+      if (isReady) {
+        const isMobile = /iPhone|iPad|Android|Mobile/.test(navigator.userAgent);
+        if (isMobile) {
+          console.log('Page show event on mobile, refreshing to reconnect...');
+          window.location.reload();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [isReady]);
+
   useEffect(()=>{
     msgsEndRef.current?.scrollIntoView({behavior:"smooth"})
   },[typingUsers,msgs])
