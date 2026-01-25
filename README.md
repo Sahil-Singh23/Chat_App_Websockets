@@ -69,42 +69,15 @@ Chat_app_websockets/
 ### Data Flow Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                     FRONTEND (React)                          │
-│  ┌───────────────────────────────────────────────────────┐   │
-│  │ Room.tsx                                              │   │
-│  │ • Message state (msgs[])                             │   │
-│  │ • Typing state (typingUsers Map)                     │   │
-│  │ • Connection state (isConnected)                     │   │
-│  │ • WebSocket ref (ws.current)                         │   │
-│  └─────┬───────────────────────────────────────────────┘    │
-│        │                                                       │
-│  STORAGE LAYER:                                              │
-│  • sessionStorage: Session data (per-tab)                    │
-│  • localStorage: Last 100 messages (persistent)              │
-└────────┼─────────────────────────────────────────────────────┘
-         │
-    WebSocket (WS)
-    Persistent Connection
-         │
-┌────────▼─────────────────────────────────────────────────────┐
-│                  BACKEND (Node.js)                            │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │ WebSocket Server                                     │    │
-│  │ • rooms: Map<roomCode, RoomData>                    │    │
-│  │   - messageHistory: Message[]                       │    │
-│  │   - clientsMap: Map<sessionId, ClientInfo>         │    │
-│  │   - emptyingSince: timestamp (for cleanup)         │    │
-│  │ • clients: Map<WebSocket, ClientMetadata>          │    │
-│  └────────┬────────────────────────────────────────────┘    │
-│           │                                                    │
-│  ┌────────▼────────────────────────────────────────────┐    │
-│  │ Cleanup Job (runs every 1 min)                      │    │
-│  │ • Checks if room.emptyingSince > 5 mins            │    │
-│  │ • Deletes stale empty rooms                        │    │
-│  │ • Resets timer when users rejoin                   │    │
-│  └─────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────┘
+Frontend (React)                 Backend (Node.js)
+├── Room.tsx                     ├── WebSocket Server
+│   ├── msgs[] state             │   ├── rooms Map
+│   ├── typingUsers Map          │   ├── clients Map
+│   └── WebSocket ref            │   └── Cleanup Job (1min)
+│                                │
+├── Storage:                     └── Auto-deletes empty
+│   ├── sessionStorage (per-tab) rooms after 5 mins
+│   └── localStorage (100 msgs)
 ```
 
 ### Design Decisions
@@ -215,82 +188,17 @@ Frontend renders <img> inline
 
 This will maintain the anonymous philosophy while adding rich media support.
 
-## 📡 WebSocket Message Protocol
+## 📡 WebSocket Architecture
 
-### Message Types
+Messages use a simple JSON protocol with `type` and `payload`:
+- **join** - Client joins a room
+- **joined** - Server confirms join + sends message history
+- **message** - Real-time message exchange
+- **typing** - Typing indicator broadcast
+- **user-joined/left** - Presence notifications
+- **error** - Error messages
 
-#### **join** (Client → Server)
-```json
-{
-  "type": "join",
-  "payload": {
-    "roomCode": "ABC123",
-    "username": "Alice",
-    "sessionId": "uuid-xxx",
-    "lastMessageTime": 1704067200000
-  }
-}
-```
-
-#### **joined** (Server → Client)
-```json
-{
-  "type": "joined",
-  "payload": {
-    "roomCode": "ABC123",
-    "user": "Alice",
-    "userCount": 1,
-    "msgs": [
-      { "msg": "Hello", "user": "Bob", "time": 1704067200000, "sessionId": "uuid-yyy" }
-    ]
-  }
-}
-```
-
-#### **message** (Bidirectional)
-```json
-{
-  "type": "message",
-  "payload": {
-    "msg": "Hello everyone!",
-    "user": "Alice",
-    "time": 1704067200000,
-    "sessionId": "uuid-xxx"
-  }
-}
-```
-
-#### **typing** (Client → Server → Others)
-```json
-{
-  "type": "typing",
-  "payload": {
-    "user": "Alice",
-    "sessionId": "uuid-xxx"
-  }
-}
-```
-
-#### **user-joined** / **user-left** (Server → Clients)
-```json
-{
-  "type": "user-joined",
-  "payload": {
-    "user": "Bob",
-    "userCount": 2
-  }
-}
-```
-
-#### **error** (Server → Client)
-```json
-{
-  "type": "error",
-  "payload": {
-    "message": "Room closed"
-  }
-}
-```
+See [backend code](./ChatAppBE/src/index.ts) for full protocol details.
 
 ## 🚀 Getting Started
 
@@ -362,79 +270,12 @@ git push origin main
 # Deploy!
 ```
 
-## 🧪 Testing Scenarios
-
-### Multi-Device Sharing
-1. Create room on mobile
-2. Share link via QR code or text
-3. Open on desktop
-4. Both see real-time messages and typing
-
-### Session Persistence
-1. Send messages in room
-2. Refresh page → Messages still visible (localStorage)
-3. Close and reopen tab → Session restored (sessionStorage)
-
-### Grace Period
-1. Last user leaves room
-2. Within 5 minutes, user opens shared link
-3. Room still exists, message history intact
-
-### Typing Indicators
-1. User A starts typing
-2. User B sees animated "User A is typing..." bubble
-3. After 3s without typing, indicator fades out
-
 ## 📊 Performance Metrics
 
 - **WebSocket Latency**: <50ms (local), ~200ms (production)
 - **Message Delivery**: <100ms across room
 - **Typing Indicator Latency**: ~50ms throttled updates
 - **Memory per Room**: ~50KB (100 messages + metadata)
-- **Initial Load**: ~2.3MB (gzipped)
-
-## 🎨 UI Components
-
-- **Message**: Self/other message bubbles with timestamps
-- **TypingBubble**: Animated 3-dot indicator with fade-out
-- **Alert**: Toast-style notifications (success/error/info)
-- **Input**: Text input with disabled state on disconnect
-- **Button**: Ghost/filled variants with disabled state
-- **ShareLinkModal**: Copy-to-clipboard with fallback
-- **UsernameModal**: Join prompt for shared links
-
-## 🛠️ Key Algorithms
-
-### Delta Sync
-```typescript
-// Only fetch messages newer than last stored
-msgs = messageHistory.filter((m) => m.time > lastMessageTime)
-```
-
-### Message Trimming
-```typescript
-// Keep only last 100 messages
-trimmedMsgs = messages.slice(-100)
-```
-
-### Room Cleanup
-```typescript
-// Every 1 minute, check empty rooms
-if (room.clientsMap.size === 0 && now - room.emptyingSince > 5mins) {
-  rooms.delete(roomCode)
-}
-```
-
-### Typing Timeout
-```typescript
-// Clear after 3 seconds of inactivity
-setTimeout(() => {
-  setRemovingTypingUsers(add(sessionId))  // Fade out
-  setTimeout(() => {
-    setTypingUsers(delete(sessionId))     // Remove
-  }, 300)
-}, 3000)
-```
 
 ## 📄 License
 
