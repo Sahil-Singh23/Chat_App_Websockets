@@ -7,8 +7,8 @@ A production-ready anonymous chat application featuring real-time messaging, typ
 ![Demo Typing](./ChatAppFE/public/img3.png)
 
 <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-  <img src="./ChatAppFE/public/img4.jpeg" alt="Demo Mobile" width="300" />
-  <img src="./ChatAppFE/public/img5.jpeg" alt="Demo Share" width="300" />
+  <img src="./ChatAppFE/public/img4.png" alt="Demo Mobile" width="300" />
+  <img src="./ChatAppFE/public/img5.png" alt="Demo Share" width="300" />
 </div>
 
 ## ✨ Features
