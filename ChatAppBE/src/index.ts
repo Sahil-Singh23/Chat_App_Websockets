@@ -208,7 +208,7 @@ wss.on("connection",(socket)=>{
                         type: "typing",
                         payload:{
                             user,
-                            isTyping: true
+                            sessionId
                         }
                     }))
                 }

@@ -6,7 +6,9 @@ import Button from "../components/Button"
 import { useEffect, useRef, useState } from "react"
 import SendIcon from "../icons/SendIcon"
 import Message from "../components/Message"
+import TypingBubble from "../components/TypingBubble"
 import { v4 as uuidv4 } from 'uuid'
+import { useParams } from 'react-router-dom'
 
 interface StoredSession{
   roomCode: string ,
@@ -16,6 +18,7 @@ interface StoredSession{
 }
 
 const Room = () => {
+  const { roomCode: paramRoomCode } = useParams<{ roomCode?: string }>();
   const [msgs,setMsgs] = useState<{user:string,msg:string,hours:number,minutes:number,isSelf:boolean}[]>([])
   const msgRef = useRef<HTMLInputElement | null>(null);
   const ws = useRef<WebSocket|null>(null);
@@ -37,8 +40,12 @@ const Room = () => {
   const [userCount,setUserCount] = useState<number>(0);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const usernameInputRef = useRef<HTMLInputElement | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(true);
   const shareLinkRef = useRef<HTMLInputElement | null>(null);
+  const lastTypingSent = useRef(0);
+  const [typingUsers,setTypingUsers] = useState<Map<string,{user:string,timestamp: number}>>(new Map());
+  const [removingTypingUsers,setRemovingTypingUsers] = useState<Set<string>>(new Set());
+  const typingTimeouts = useRef<Map<string,ReturnType<typeof setTimeout>>>(new Map());
 
   function saveSession() {
     const session: StoredSession = {
@@ -60,39 +67,55 @@ const Room = () => {
     
     const msgs = JSON.parse(stored);
     return msgs.length > 0 ? msgs[msgs.length - 1].time : 0;
-  };
+  }
   function getLocalMsgs(){
     const stored = localStorage.getItem('roomMessages');
     if (!stored) return [];
     const msgs = JSON.parse(stored);
     return msgs;
   }
-
   function trimMessagesToLast100(messages: any[]) {
     if (messages.length > 100) {
       return messages.slice(-100);
     }
     return messages;
   }
-  
+
+  function handleTyping() {
+    const now = Date.now();
+    const currentMsg = msgRef.current?.value || '';
+    
+    if (!lastTypingSent.current || now - lastTypingSent.current >= 500) {
+      if (currentMsg.length > 0) {
+        if (!ws.current || ws.current.readyState !== WebSocket.OPEN) return;
+        
+        ws.current.send(JSON.stringify({
+          type: "typing",
+          payload: { sessionId }
+        }));
+        lastTypingSent.current = now;
+      }
+    }
+  }
   useEffect(()=>{
     msgsEndRef.current?.scrollIntoView({behavior:"smooth"})
-  },[msgs])
+  },[typingUsers,msgs])
   useEffect(()=>{
     try{
       const params = new URLSearchParams(window.location.search);
-      const roomCodeParam = params.get('roomCode');
+      const queryRoomCode = params.get('roomCode');
+      const roomCodeToUse = paramRoomCode || queryRoomCode;
       
       const mountData = localStorage.getItem('newChatSession');
       
-      // If URL has roomCode but no session data, show username modal
-      if (roomCodeParam && !mountData) {
+      // If roomCode exists but no session data, show username modal
+      if (roomCodeToUse && !mountData) {
         setShowUsernameModal(true);
         return;
       }
       
-      // No roomCode param and no session - redirect home
-      if (!roomCodeParam && !mountData) {
+      // No roomCode and no session - redirect home
+      if (!roomCodeToUse && !mountData) {
         window.location.href = '/';
         return;
       }
@@ -111,7 +134,7 @@ const Room = () => {
       nicknameRef.current = data.nickname;
       setIsReady(true);
    
-        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://192.168.1.85:8000');
+        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://192.168.1.30:8000');
        
         ws.current.onopen = ()=>{ 
             if(!ws.current) return;
@@ -156,9 +179,9 @@ const Room = () => {
             else if(data.type == "joined"){
                 const {userCount,msgs} = data.payload;
                 setUserCount(userCount);
-                setShowAlert(true);
-                setAlertMessage("Joined the room");
-                setAlertType('success');
+                // setShowAlert(true);
+                // setAlertMessage("Joined the room");
+                // setAlertType('success');
                 //write logic for storedMsgs
                 const oldMsgs = getLocalMsgs();
                 const allMsgs = [...oldMsgs, ...msgs]
@@ -215,6 +238,57 @@ const Room = () => {
                 const msgObj = {user,msg,hours,minutes,isSelf};
                 setMsgs((m)=>[...m,msgObj])
                 
+                // Remove typing indicator when user sends a message
+                setTypingUsers(prev => {
+                  const updated = new Map(prev);
+                  updated.delete(msgSessionId);
+                  return updated;
+                });
+                if (typingTimeouts.current.has(msgSessionId)) {
+                  clearTimeout(typingTimeouts.current.get(msgSessionId));
+                  typingTimeouts.current.delete(msgSessionId);
+                }
+            }
+            else if(data.type == 'typing'){
+              const {user,sessionId: typingSessionId} = data.payload;
+
+              if(typingTimeouts.current.has(typingSessionId))
+                clearTimeout(typingTimeouts.current.get(typingSessionId));
+
+              setTypingUsers(prev => {
+                  const updated = new Map(prev);
+                  updated.set(typingSessionId, {user, timestamp: Date.now()});
+                  
+                  // Keep only top 3 users (remove oldest)
+                  if (updated.size > 3) {
+                      const oldest = Array.from(updated.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp)[0];
+                      updated.delete(oldest[0]);
+                  }
+                  return updated;
+              });
+              
+              // Auto-clear after 3 seconds
+              const timeout = setTimeout(() => {
+                  // First, mark as removing (triggers fade-out)
+                  setRemovingTypingUsers(prev => new Set(prev).add(typingSessionId));
+                  
+                  // Then remove after fade animation completes (300ms)
+                  setTimeout(() => {
+                      setTypingUsers(prev => {
+                          const updated = new Map(prev);
+                          updated.delete(typingSessionId);
+                          return updated;
+                      });
+                      setRemovingTypingUsers(prev => {
+                          const updated = new Set(prev);
+                          updated.delete(typingSessionId);
+                          return updated;
+                      });
+                      typingTimeouts.current.delete(typingSessionId);
+                  }, 300);
+              }, 3000);
+              
+              typingTimeouts.current.set(typingSessionId, timeout);
             }
         }
     }catch(e){
@@ -282,7 +356,7 @@ const Room = () => {
   }
 
   function copyLink() {
-    const url = `${window.location.origin}?roomCode=${roomCodeRef.current}`;
+    const url = `${window.location.origin}/room/${roomCodeRef.current}`;
     
     if (navigator.share) {
       navigator.share({
@@ -306,12 +380,11 @@ const Room = () => {
       return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const roomCode = params.get('roomCode');
+    const roomCodeToUse = paramRoomCode || new URLSearchParams(window.location.search).get('roomCode');
     
-    if (roomCode) {
+    if (roomCodeToUse) {
       const newSession: StoredSession = {
-        roomCode: roomCode,
+        roomCode: roomCodeToUse,
         nickname: usernameInputRef.current.value,
         sessionId: sessionId,
         timestamp: Date.now()
@@ -341,7 +414,7 @@ const Room = () => {
                 ref={shareLinkRef}
                 type="text"
                 readOnly
-                value={`${window.location.origin}?roomCode=${roomCodeRef.current}`}
+                value={`${window.location.origin}/room/${roomCodeRef.current}`}
                 className="flex-1 bg-transparent text-white text-xs outline-none select-all"
               />
               <button
@@ -424,6 +497,9 @@ const Room = () => {
                 {msgs.map((m,i)=>(
                     <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user} isSelf={m.isSelf}></Message>
                 ))}
+                {Array.from(typingUsers.values()).map((typingUser) => (
+                    <TypingBubble key={typingUser.user} user={typingUser.user} isRemoving={removingTypingUsers.has(typingUser.user)} />
+                ))}
                 <div ref={msgsEndRef}></div>
                 {/* all messages will render here */}
             </div>
@@ -432,6 +508,7 @@ const Room = () => {
                 width="w-5/6" 
                 ref={msgRef} 
                 placeholder="Type a message"
+                onInput={handleTyping}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
