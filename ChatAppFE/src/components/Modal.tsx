@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react"
-import Button from "./Button"
 
 type ModalProps = {
   isOpen: boolean
