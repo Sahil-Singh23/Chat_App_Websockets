@@ -113,10 +113,30 @@ const Landing = () => {
 						</span>
             <Button onClick={CreateRoom} width="w-full" text={isLoading ? "Creating..." : "Create new room"} disabled={isLoading||isJoining}></Button>
             <div className="mt-4 w-full">
-              <Input width="w-full" ref={nameRef} placeholder="Enter nickname"></Input>
+              <Input 
+                width="w-full" 
+                ref={nameRef} 
+                placeholder="Enter nickname"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    JoinRoom();
+                  }
+                }}
+              ></Input>
             </div>
             <div className="flex flex-col sm:flex-row mt-4 w-full gap-4 md:gap-2">
-              <Input width="w-full sm:w-4/6" ref={roomRef} placeholder="Enter room code"></Input>
+              <Input 
+                width="w-full sm:w-4/6" 
+                ref={roomRef} 
+                placeholder="Enter room code"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    JoinRoom();
+                  }
+                }}
+              ></Input>
               <Button width="w-full sm:w-2/6" disabled={isLoading||isJoining} onClick={JoinRoom} text={isJoining ? "Joining..." : "Join"} ></Button>
             </div>
           </div>

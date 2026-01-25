@@ -5,8 +5,11 @@ A production-ready anonymous chat application featuring real-time messaging, typ
 ![Demo Landing](./ChatAppFE/public/img1.png)
 ![Demo Chat Room](./ChatAppFE/public/img2.png)
 ![Demo Typing](./ChatAppFE/public/img3.png)
-![Demo Mobile](./ChatAppFE/public/img4.jpeg)
-![Demo Share](./ChatAppFE/public/img5.jpeg)
+
+<div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+  <img src="./ChatAppFE/public/img4.jpeg" alt="Demo Mobile" width="300" />
+  <img src="./ChatAppFE/public/img5.jpeg" alt="Demo Share" width="300" />
+</div>
 
 ## ✨ Features
 
