@@ -48,7 +48,7 @@ interface RoomData{
     createdAt: number,
     //session id -> their data 
     clientsMap: Map<string,ClientInfo>,
-    emptyingSince?: number  // Timestamp when room became empty
+    emptyingSince?: number | undefined  // Timestamp when room became empty
 }
 interface ClientInfo{
     socket: WebSocket,
@@ -272,7 +272,7 @@ wss.on("connection",(socket)=>{
             }
             // Mark room as empty instead of deleting immediately
             if(roomClients?.size === 0){
-                roomData.emptyingSince = Date.now();
+                if(roomData) roomData.emptyingSince = Date.now();
             }
         }
         const timer = setTimeout(deleteUser,60*1000);
