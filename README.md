@@ -13,15 +13,15 @@ A production-ready anonymous chat application featuring real-time messaging, typ
 
 ## ✨ Features
 
-- **🔄 Real-time Messaging** - Instant message delivery using WebSockets
-- **⌨️ Live Typing Indicators** - See who's typing in real-time with animated indicators
-- **💾 Message Persistence** - Last 100 messages cached in localStorage (survives page refresh)
-- **📱 Mobile-First Design** - Fully responsive on phones, tablets, and desktop
-- **🔗 Smart Link Sharing** - Share room links that work across devices with dynamic routing
-- **🎯 Session Management** - Per-tab session isolation prevents multi-tab conflicts
-- **⏱️ Room Lifecycle Management** - Rooms stay alive for 5+ minutes even with 0 users (grace period for link sharing)
-- **👥 Live User Count** - Real-time user presence tracking
-- **🎨 Smooth Animations** - Polished UI with fade transitions and scroll animations
+- **Real-time Messaging** - Instant message delivery using WebSockets
+- **Live Typing Indicators** - See who's typing in real-time with animated indicators
+- **Message Persistence** - Last 100 messages cached in localStorage (survives page refresh)
+- **Mobile-First Design** - Fully responsive on phones, tablets, and desktop
+- **Smart Link Sharing** - Share room links that work across devices with dynamic routing
+- **Session Management** - Per-tab session isolation prevents multi-tab conflicts
+- **Room Lifecycle Management** - Rooms stay alive for 5+ minutes even with 0 users (grace period for link sharing)
+- **Live User Count** - Real-time user presence tracking
+- **Smooth Animations** - Polished UI with fade transitions and scroll animations
 - **Anonymous** - No sign-up required, completely private
 - **Auto-cleanup** - Rooms auto-delete after 5 minutes of inactivity
 
@@ -53,18 +53,18 @@ Chat_app_websockets/
 ### Tech Stack
 
 **Frontend:**
-- ⚛️ React 18 with TypeScript
-- ⚡ Vite (instant HMR, optimized builds)
-- 🎨 Tailwind CSS v4
-- 🧭 React Router (dynamic routes)
-- 📡 Native WebSocket API
-- 🎭 Custom hooks (useThrottle, useDebounce)
+-  React 18 with TypeScript
+-  Vite (instant HMR, optimized builds)
+-  Tailwind CSS v4
+-  React Router (dynamic routes)
+-  Native WebSocket API
+-  Custom hooks (useThrottle, useDebounce)
 
 **Backend:**
-- 🟢 Node.js + Express
-- 🔌 WebSocket server (ws library)
-- 📝 TypeScript for type safety
-- 💾 In-memory room storage with automatic cleanup
+-  Node.js + Express
+-  WebSocket server (ws library)
+-  TypeScript for type safety
+-  In-memory room storage with automatic cleanup
 
 ### Data Flow Architecture
 
