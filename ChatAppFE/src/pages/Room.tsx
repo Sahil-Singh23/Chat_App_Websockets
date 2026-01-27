@@ -566,7 +566,7 @@ const Room = () => {
             className="flex flex-col w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700 overflow-y-auto gap-3"
           >
               {msgs.map((m,i)=>(
-                  <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user} isSelf={m.isSelf}></Message>
+                  <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user} isSelf={m.isSelf} status={m.status}></Message>
               ))}
               {Array.from(typingUsers.values()).map((typingUser) => (
                   <TypingBubble key={typingUser.user} user={typingUser.user} isRemoving={removingTypingUsers.has(typingUser.user)} />
