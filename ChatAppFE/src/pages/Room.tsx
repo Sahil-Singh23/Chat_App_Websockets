@@ -8,7 +8,7 @@ import SendIcon from "../icons/SendIcon"
 import Message from "../components/Message"
 import TypingBubble from "../components/TypingBubble"
 import { v4 as uuidv4 } from 'uuid'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import LoadingOverlay from "../components/LoadingOverlay"
 import ShareLinkModal from "../components/ShareLinkModal"
 
@@ -49,6 +49,7 @@ const Room = () => {
   const [removingTypingUsers,setRemovingTypingUsers] = useState<Set<string>>(new Set());
   const typingTimeouts = useRef<Map<string,ReturnType<typeof setTimeout>>>(new Map());
   const [isConnecting, setIsConnecting] = useState(true);
+  const navigate = useNavigate();
 
   function saveSession() {
     const session: StoredSession = {
@@ -159,7 +160,7 @@ const Room = () => {
       
       // No roomCode and no session - redirect home
       if (!roomCodeToUse && !mountData) {
-        window.location.href = '/';
+        navigate('/');
         return;
       }
       
@@ -219,7 +220,7 @@ const Room = () => {
                   setAlertType('error');
                   localStorage.removeItem('roomMessages');
                   setTimeout(()=>{
-                      window.location.href = '/'; 
+                      navigate('/'); 
                       return;
                   },800)
                 }else{
@@ -405,7 +406,7 @@ const Room = () => {
     localStorage.removeItem('roomMessages');
     localStorage.removeItem('chatSession');
     sessionStorage.removeItem('newChatSession');
-    window.location.href = '/';
+    navigate('/');
   }
 
   function copyLink() {
