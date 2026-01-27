@@ -44,7 +44,6 @@ const Room = () => {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const usernameInputRef = useRef<HTMLInputElement | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
-  const shareLinkRef = useRef<HTMLInputElement | null>(null);
   const lastTypingSent = useRef(0);
   const [typingUsers,setTypingUsers] = useState<Map<string,{user:string,timestamp: number}>>(new Map());
   const [removingTypingUsers,setRemovingTypingUsers] = useState<Set<string>>(new Set());
