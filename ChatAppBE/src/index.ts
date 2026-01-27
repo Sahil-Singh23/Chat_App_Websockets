@@ -7,7 +7,16 @@ dotenv.config();
 const PORT = Number(process.env.PORT) || 8000;
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: [
+        'https://anonymous-room-websockets-one.vercel.app',
+        'http://localhost:5173',  // for local development
+        'http://localhost:3000'   // alternative local port
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type']
+}));
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
