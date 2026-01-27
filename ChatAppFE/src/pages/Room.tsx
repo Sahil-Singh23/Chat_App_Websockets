@@ -21,7 +21,7 @@ interface StoredSession{
 
 const Room = () => {
   const { roomCode: paramRoomCode } = useParams<{ roomCode?: string }>();
-  const [msgs,setMsgs] = useState<{user:string,msg:string,hours:number,minutes:number,isSelf:boolean}[]>([])
+  const [msgs,setMsgs] = useState<{user:string,msg:string,hours:number,minutes:number,isSelf:boolean,status?:'sending'|'sent',timestamp:number}[]>([])
   const msgRef = useRef<HTMLInputElement | null>(null);
   const ws = useRef<WebSocket|null>(null);
   const msgsEndRef = useRef<HTMLDivElement>(null);
@@ -249,7 +249,9 @@ const Room = () => {
                         msg: m.msg,
                         hours: date.getHours(),
                         minutes: date.getMinutes(),
-                        isSelf: m.sessionId === sessionId
+                        isSelf: m.sessionId === sessionId,
+                        status: m.sessionId === sessionId ? ('sent' as const) : undefined,
+                        timestamp: m.time
                     };
                 });
                 setMsgs((prev) => [...prev, ...transformedMsgs]);
@@ -289,8 +291,29 @@ const Room = () => {
                 const hours = date.getHours();
                 const minutes = date.getMinutes();
                 const isSelf = msgSessionId === sessionId;
-                const msgObj = {user,msg,hours,minutes,isSelf};
-                setMsgs((m)=>[...m,msgObj])
+                
+                if (isSelf) {
+                  // Update existing 'sending' message to 'sent'
+                  setMsgs((prevMsgs) => {
+                    const foundIndex = prevMsgs.findIndex(
+                      (m) => m.isSelf && m.msg === msg && m.status === 'sending' && (time - m.timestamp < 10000)
+                    );
+                    if (foundIndex !== -1) {
+                      const updated = [...prevMsgs];
+                      updated[foundIndex] = {
+                        ...updated[foundIndex],
+                        status: 'sent' as const,
+                        timestamp: time
+                      };
+                      return updated;
+                    }
+                    // Fallback: add as sent if optimistic not found
+                    return [...prevMsgs, {user,msg,hours,minutes,isSelf,status:'sent' as const,timestamp:time}];
+                  });
+                } else {
+                  // Other user's message
+                  setMsgs((m)=>[...m,{user,msg,hours,minutes,isSelf,timestamp:time}]);
+                }
                 
                 // Remove typing indicator when user sends a message
                 setTypingUsers(prev => {
@@ -389,8 +412,28 @@ const Room = () => {
     if(!ws.current) return;
     if (ws.current.readyState !== WebSocket.OPEN) return;
     if(!msgRef.current) return;
-    //write sending msg logic here
     const msg = msgRef.current.value;
+    if (!msg.trim()) return;
+    
+    // Get current time for optimistic message
+    const now = Date.now();
+    const date = new Date(now);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    
+    // Add message optimistically with 'sending' status
+    const optimisticMsg = {
+      user: nicknameRef.current,
+      msg,
+      hours,
+      minutes,
+      isSelf: true,
+      status: 'sending' as const,
+      timestamp: now
+    };
+    setMsgs((prev) => [...prev, optimisticMsg]);
+    
+    // Send to server
     ws.current.send(JSON.stringify({
         type:"message",
         payload:{
