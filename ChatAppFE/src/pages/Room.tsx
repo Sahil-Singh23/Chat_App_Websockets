@@ -9,7 +9,8 @@ import Message from "../components/Message"
 import TypingBubble from "../components/TypingBubble"
 import { v4 as uuidv4 } from 'uuid'
 import { useParams } from 'react-router-dom'
-import Loader from "../components/Loader"
+import LoadingOverlay from "../components/LoadingOverlay"
+import ShareLinkModal from "../components/ShareLinkModal"
 
 interface StoredSession{
   roomCode: string ,
@@ -457,44 +458,18 @@ const Room = () => {
           onClose={() => setShowAlert(false)}
         />
       )}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-3 z-50">
-          <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-6 max-w-sm w-full">
-            <h2 className="text-white text-xl font-ntbricksans mb-4">Share Room Link</h2>
-            <p className="text-white/70 text-sm mb-4">Copy this link and share it with others:</p>
-            <div className="bg-neutral-800 border border-neutral-600 rounded-lg p-3 mb-4 flex items-center gap-2">
-              <input
-                ref={shareLinkRef}
-                type="text"
-                readOnly
-                value={`${window.location.origin}/room/${roomCodeRef.current}`}
-                className="flex-1 bg-transparent text-white text-xs outline-none select-all"
-              />
-              <button
-                onClick={() => {
-                  if (shareLinkRef.current) {
-                    shareLinkRef.current.select();
-                    document.execCommand('copy');
-                    setShowAlert(true);
-                    setAlertMessage('Link copied!');
-                    setAlertType('success');
-                    setShowShareModal(false);
-                  }
-                }}
-                className="px-3 py-1 bg-[#FFFAED] text-black text-xs font-semibold rounded hover:opacity-90 transition-opacity whitespace-nowrap"
-              >
-                Copy
-              </button>
-            </div>
-            <button
-              onClick={() => setShowShareModal(false)}
-              className="w-full px-4 py-2 text-white border border-neutral-600 rounded-lg hover:bg-neutral-800 transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      <ShareLinkModal 
+        isOpen={showShareModal}
+        roomCode={roomCodeRef.current}
+        onClose={() => setShowShareModal(false)}
+        onCopy={() => {
+          setShowAlert(true);
+          setAlertMessage('Link copied!');
+          setAlertType('success');
+          setShowShareModal(false);
+        }}
+      />
+      <LoadingOverlay isLoading={isConnecting} />
       <Glow></Glow>
       <div className="flex flex-col items-center justify-center min-h-screen px-3 sm:px-6 lg:px-8">
         <div className="w-full max-w-full md:max-w-1/2">
@@ -545,22 +520,16 @@ const Room = () => {
               />
             </div>
             <div 
-              className="flex flex-col w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700 overflow-y-auto gap-3"
-            >
-                {isConnecting ? (
-                    <Loader />
-                ) : (
-                    <>
-                        {msgs.map((m,i)=>(
-                            <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user} isSelf={m.isSelf}></Message>
-                        ))}
-                        {Array.from(typingUsers.values()).map((typingUser) => (
-                            <TypingBubble key={typingUser.user} user={typingUser.user} isRemoving={removingTypingUsers.has(typingUser.user)} />
-                        ))}
-                        <div ref={msgsEndRef}></div>
-                    </>
-                )}
-            </div>
+            className="flex flex-col w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700 overflow-y-auto gap-3"
+          >
+              {msgs.map((m,i)=>(
+                  <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user} isSelf={m.isSelf}></Message>
+              ))}
+              {Array.from(typingUsers.values()).map((typingUser) => (
+                  <TypingBubble key={typingUser.user} user={typingUser.user} isRemoving={removingTypingUsers.has(typingUser.user)} />
+              ))}
+              <div ref={msgsEndRef}></div>
+          </div>
             <div className="flex flex-row mt-4 w-full gap-4 md:gap-2">
               <Input 
                 width="w-5/6" 
