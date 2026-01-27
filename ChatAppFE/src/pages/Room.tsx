@@ -9,6 +9,7 @@ import Message from "../components/Message"
 import TypingBubble from "../components/TypingBubble"
 import { v4 as uuidv4 } from 'uuid'
 import { useParams } from 'react-router-dom'
+import Loader from "../components/Loader"
 
 interface StoredSession{
   roomCode: string ,
@@ -47,6 +48,8 @@ const Room = () => {
   const [typingUsers,setTypingUsers] = useState<Map<string,{user:string,timestamp: number}>>(new Map());
   const [removingTypingUsers,setRemovingTypingUsers] = useState<Set<string>>(new Set());
   const typingTimeouts = useRef<Map<string,ReturnType<typeof setTimeout>>>(new Map());
+  const [isConnecting, setIsConnecting] = useState(true);
+
   function saveSession() {
     const session: StoredSession = {
       roomCode: roomCodeRef.current,
@@ -226,6 +229,7 @@ const Room = () => {
                 }
             }
             else if(data.type == "joined"){
+                setIsConnecting(false); 
                 const {userCount,msgs} = data.payload;
                 setUserCount(userCount);
                 // setShowAlert(true);
@@ -543,14 +547,19 @@ const Room = () => {
             <div 
               className="flex flex-col w-full h-[60svh] p-6 md:p-8 rounded-2xl border border-solid border-neutral-700 overflow-y-auto gap-3"
             >
-                {msgs.map((m,i)=>(
-                    <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user} isSelf={m.isSelf}></Message>
-                ))}
-                {Array.from(typingUsers.values()).map((typingUser) => (
-                    <TypingBubble key={typingUser.user} user={typingUser.user} isRemoving={removingTypingUsers.has(typingUser.user)} />
-                ))}
-                <div ref={msgsEndRef}></div>
-                {/* all messages will render here */}
+                {isConnecting ? (
+                    <Loader />
+                ) : (
+                    <>
+                        {msgs.map((m,i)=>(
+                            <Message key={i} msg={m.msg} hours={m.hours} minutes={m.minutes} user={m.user} isSelf={m.isSelf}></Message>
+                        ))}
+                        {Array.from(typingUsers.values()).map((typingUser) => (
+                            <TypingBubble key={typingUser.user} user={typingUser.user} isRemoving={removingTypingUsers.has(typingUser.user)} />
+                        ))}
+                        <div ref={msgsEndRef}></div>
+                    </>
+                )}
             </div>
             <div className="flex flex-row mt-4 w-full gap-4 md:gap-2">
               <Input 
@@ -558,6 +567,7 @@ const Room = () => {
                 ref={msgRef} 
                 placeholder="Type a message"
                 onInput={handleTyping}
+                disabled={isConnecting}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
