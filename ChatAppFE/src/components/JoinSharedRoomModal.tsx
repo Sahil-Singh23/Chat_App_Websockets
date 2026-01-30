@@ -1,6 +1,4 @@
 import { useRef } from "react"
-import Button from "./Button"
-import Input from "./Input"
 import Glow from "./Glow"
 
 interface JoinSharedRoomModalProps {
