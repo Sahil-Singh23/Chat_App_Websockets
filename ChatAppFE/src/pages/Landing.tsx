@@ -7,52 +7,55 @@ import Input from "../components/Input"
 import ChatIcon from "../icons/ChatIcon"
 import Glow from "../components/Glow"
 import Alert from "../components/Alert"
+import JoinSharedRoomModal from "../components/JoinSharedRoomModal"
 
 const Landing = () => {
   const nameRef = useRef<HTMLInputElement>(null);
-  const roomRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<'success' | 'error' | 'info'>('success');
+  const [showModal, setShowModal] = useState(false);
+  const [nickname, setNickname] = useState("");
   const navigate = useNavigate();
-  const fallBackUrl = 'http://192.168.1.30:8000';
+  const fallBackUrl = 'http://localhost:8000';
+  
+  const isNicknameFilled = nickname.trim().length > 0;
 
-  async function CreateRoom(){
+  async function CreateAndJoinRoom(){
+    if(!nickname.trim()) {
+      setAlertMessage("Please enter a nickname first");
+      setAlertType('error');
+      setShowAlert(true);
+      return;
+    }
+
     setIsLoading(true);
     try{
       const response = await axios.post(`${import.meta.env.VITE_API_URL || fallBackUrl}/api/v1/create`)
-      if(roomRef.current) {
-        roomRef.current.value = response.data.roomCode;
-        //await navigator.clipboard.writeText(response.data.roomCode);
-        setAlertMessage("Room created!");
-        setAlertType('success');
-        setShowAlert(true);
-      }
+      const roomCode = response.data.roomCode;
+      
+      sessionStorage.setItem('newChatSession', JSON.stringify({ roomCode, nickname }));
+      navigate(`/room/${roomCode}`);
     }catch (error) {
       console.error('Error creating room:', error)
       setAlertMessage("Failed to create room. Please try again.");
       setAlertType('error');
       setShowAlert(true);
-    } finally {
       setIsLoading(false);
     }
   }
 
-  async function JoinRoom(){
-    setIsJoining(true);
-    const roomCode = roomRef.current?.value
-    const nickname = nameRef.current?.value
-    
-    if(!roomCode || !nickname) {
-      setAlertMessage("Please enter both nickname and room code");
+  async function JoinSharedRoom(roomCode: string){
+    if(!roomCode.trim()) {
+      setAlertMessage("Please enter a room code");
       setAlertType('error');
       setShowAlert(true);
-      setIsJoining(false);
       return;
     }
     
+    setIsJoining(true);
     try{
       const response = await axios.post(`${import.meta.env.VITE_API_URL || fallBackUrl}/api/v1/room/${roomCode}`)
       if(response.data) {
@@ -68,8 +71,17 @@ const Landing = () => {
         setAlertType('error');
       }
       setShowAlert(true);
-    } finally {
       setIsJoining(false);
+    }
+  }
+
+  const handleGhostButtonClick = () => {
+    if(isNicknameFilled) {
+      setShowModal(true);
+    } else {
+      setAlertMessage("Please enter a nickname first");
+      setAlertType('error');
+      setShowAlert(true);
     }
   }
     
@@ -111,37 +123,42 @@ const Landing = () => {
             <span className="text-white text-xs md:text-sm mb-5 font-sfmono opacity-70">
 							{"temporary chats that disappears after all users exit"}
 						</span>
-            <Button onClick={CreateRoom} width="w-full" text={isLoading ? "Creating..." : "Create new room"} disabled={isLoading||isJoining}></Button>
-            <div className="mt-4 w-full">
+            <div className="mt-4 mb-3 w-full">
               <Input 
                 width="w-full" 
                 ref={nameRef} 
                 placeholder="Enter nickname"
+                value={nickname}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    JoinRoom();
+                    CreateAndJoinRoom();
                   }
                 }}
+                onChange={(e) => setNickname(e.currentTarget.value)}
               ></Input>
             </div>
-            <div className="flex flex-col sm:flex-row mt-4 w-full gap-4 md:gap-2">
-              <Input 
-                width="w-full sm:w-4/6" 
-                ref={roomRef} 
-                placeholder="Enter room code"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    JoinRoom();
-                  }
-                }}
-              ></Input>
-              <Button width="w-full sm:w-2/6" disabled={isLoading||isJoining} onClick={JoinRoom} text={isJoining ? "Joining..." : "Join"} ></Button>
+          
+            <Button onClick={CreateAndJoinRoom} width="w-full" text={isLoading ? "Creating..." : "Create and Join"} disabled={isLoading||isJoining}></Button>
+            <div className="flex justify-center w-full mt-4">
+              <button 
+                onClick={handleGhostButtonClick}
+                className="text-white text-xs font-sfmono opacity-70 hover:opacity-100 transition-opacity duration-200 bg-transparent border-none cursor-pointer"
+              >
+                Already have a shared room code?
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Modal */}
+      <JoinSharedRoomModal 
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onJoin={JoinSharedRoom}
+        isLoading={isJoining}
+      />
     </section>
   )
 }

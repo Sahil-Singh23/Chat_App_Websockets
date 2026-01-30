@@ -5,6 +5,8 @@ type inputProps = {
     width: string,
     onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void,
     onInput?: (e: React.FormEvent<HTMLInputElement>) => void,
+    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void,
+    value?: string,
     disabled?: boolean
 }
 
@@ -19,6 +21,8 @@ const Input = forwardRef<HTMLInputElement, inputProps>((props, ref) => {
         placeholder={props.placeholder}
         onKeyDown={props.onKeyDown}
         onInput={props.onInput}
+        onChange={props.onChange}
+        value={props.value}
         disabled = {props.disabled}
       />
     </div>

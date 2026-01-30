@@ -187,7 +187,7 @@ const Room = () => {
       nicknameRef.current = data.nickname;
       setIsReady(true);
    
-        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://192.168.1.30:8000');
+        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:8000');
        
         ws.current.onopen = ()=>{ 
             if(!ws.current) return;
@@ -216,7 +216,7 @@ const Room = () => {
                 const {message} = data.payload;
                 if(message.includes('Room closed')){
                   setShowAlert(true);
-                  setAlertMessage(message);
+                  setAlertMessage("Room closed, Please create a new room");
                   setAlertType('error');
                   localStorage.removeItem('roomMessages');
                   setTimeout(()=>{
