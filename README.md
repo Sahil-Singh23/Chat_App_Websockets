@@ -2,7 +2,7 @@
 
 A production-ready anonymous chat application featuring real-time messaging, typing indicators, persistent message history, and multi-device support. Built with WebSockets for instant communication.
 
-![Demo Landing](./ChatAppFE/public/img1.png)
+![Demo Landing](./ChatAppFE/public/img1new.png)
 ![Demo Chat Room](./ChatAppFE/public/img2.png)
 ![Demo Typing](./ChatAppFE/public/img3.png)
 
